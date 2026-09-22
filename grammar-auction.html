@@ -61,7 +61,7 @@ input:focus { border-color: #f59e0b; }
 }
 .animate-in { animation: fadeIn 0.3s ease forwards; }
 
-/* ========== ROLE SELECT ========== */
+/* ROLE SELECT */
 #roleSelect {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 100vh; gap: 24px; padding: 20px; text-align: center;
@@ -77,7 +77,7 @@ input:focus { border-color: #f59e0b; }
 .role-card h2 { color: #f59e0b; font-size: 1.2rem; margin-bottom: 8px; }
 .role-card p { color: #94a3b8; font-size: 0.85rem; line-height: 1.4; }
 
-/* ========== HOST SCREEN ========== */
+/* HOST SCREEN */
 #hostScreen { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
 .host-header {
@@ -127,7 +127,7 @@ input:focus { border-color: #f59e0b; }
 .team-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
 .team-chip .name { font-weight: 600; font-size: 0.85rem; }
 
-/* ===== HOST GAME LAYOUT — SINGLE VIEWPORT ===== */
+/* HOST GAME LAYOUT — SINGLE VIEWPORT */
 .game-layout {
   flex: 1; display: grid;
   grid-template-columns: 1fr 280px;
@@ -189,8 +189,8 @@ input:focus { border-color: #f59e0b; }
   animation: flashRed 0.6s ease;
 }
 .bet-card.no-bet-reveal {
-  border-color: #64748b; background: rgba(100,116,139,0.1);
-  opacity: 0.6;
+  border-color: #ef4444; background: rgba(239,68,68,0.15);
+  animation: flashRed 0.6s ease;
 }
 .bet-card .team-name { font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
 .bet-card .balance { color: #94a3b8; font-size: 0.8rem; }
@@ -248,7 +248,7 @@ input:focus { border-color: #f59e0b; }
   animation: confetti 3s ease-out forwards;
 }
 
-/* ========== CLIENT SCREEN ========== */
+/* CLIENT SCREEN */
 #clientScreen { padding: 16px; max-width: 500px; margin: 0 auto; min-height: 100vh; }
 .client-join {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -384,6 +384,7 @@ input:focus { border-color: #f59e0b; }
       <!-- BOTTOM: Controls -->
       <div class="host-controls" id="hostControls">
         <button class="btn btn-gold" id="nextQuestionBtn" onclick="nextQuestion()">▶️ Next Question</button>
+        <button class="btn btn-blue btn-sm" id="skipTimerBtn" onclick="skipTimer()" disabled>⏩ Skip Timer</button>
         <button class="btn btn-red btn-sm" id="endGameBtn" onclick="triggerFinalChallenge()">🏁 End Game</button>
       </div>
     </div>
@@ -474,13 +475,12 @@ function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); return audioC
 
 function playStartSound() {
   const ctx = ensureAudio();
-  // Rising triple chime
   [0, 0.15, 0.3].forEach((delay, i) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'sine';
-    osc.frequency.value = [523, 659, 784][i]; // C5, E5, G5
+    osc.frequency.value = [523, 659, 784][i];
     gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.3);
     osc.start(ctx.currentTime + delay);
@@ -490,21 +490,19 @@ function playStartSound() {
 
 function playBuzzerSound() {
   const ctx = ensureAudio();
-  // Dramatic low buzzer + descending tone
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const gain1 = ctx.createGain();
   const gain2 = ctx.createGain();
   osc1.connect(gain1); gain1.connect(ctx.destination);
   osc2.connect(gain2); gain2.connect(ctx.destination);
-  // Low buzzer
   osc1.type = 'sawtooth';
   osc1.frequency.setValueAtTime(150, ctx.currentTime);
   osc1.frequency.linearRampToValueAtTime(80, ctx.currentTime + 0.8);
   gain1.gain.setValueAtTime(0.25, ctx.currentTime);
   gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
   osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.8);
-  // High accent
+
   osc2.type = 'square';
   osc2.frequency.setValueAtTime(440, ctx.currentTime);
   osc2.frequency.linearRampToValueAtTime(220, ctx.currentTime + 0.5);
@@ -593,6 +591,16 @@ const QUESTIONS = [
   {id:50, sentence:"Does she go to work by bus every day?", status:"LEGAL", correction:"Correct daily routine question."}
 ];
 
+// Helper: Shuffle Array (Fisher-Yates)
+function shuffleArray(arr) {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // ===== NUMBER TO WORDS =====
 function numberToWords(num) {
   if (num === 0) return 'zero';
@@ -618,6 +626,7 @@ let role = null, roomCode = '', peer = null, joinUrl = '';
 
 const hostState = {
   teamCount: 4, teams: {}, currentQ: 0, bets: {},
+  shuffledQuestions: [],
   timerInterval: null, timeLeft: 30, bettingOpen: false,
   gameStarted: false, roundRevealed: false,
   finalChallengeActive: false, fcTeamOrder: [], fcCurrentIndex: 0
@@ -749,6 +758,10 @@ function copyJoinLink() {
 // ===== GAME FLOW =====
 function startGame() {
   hostState.gameStarted = true;
+  // Randomize questions list on game start
+  hostState.shuffledQuestions = shuffleArray(QUESTIONS);
+  hostState.currentQ = 0;
+
   document.getElementById('hostSetup').classList.add('hidden');
   document.getElementById('hostGame').classList.remove('hidden');
   broadcastToAll({ type: 'gameStarted' });
@@ -757,35 +770,38 @@ function startGame() {
 }
 
 function nextQuestion() {
-  if (hostState.currentQ >= QUESTIONS.length) { triggerFinalChallenge(); return; }
+  if (!hostState.shuffledQuestions || hostState.shuffledQuestions.length === 0) {
+    hostState.shuffledQuestions = shuffleArray(QUESTIONS);
+  }
 
-  const q = QUESTIONS[hostState.currentQ];
+  if (hostState.currentQ >= hostState.shuffledQuestions.length) {
+    triggerFinalChallenge(); return;
+  }
+
+  const q = hostState.shuffledQuestions[hostState.currentQ];
   hostState.currentQ++;
   hostState.bets = {};
   hostState.bettingOpen = true;
   hostState.roundRevealed = false;
   hostState.timeLeft = 30;
 
-  // Play start sound
   playStartSound();
 
-  // UI
   document.getElementById('questionDisplay').classList.remove('hidden');
-  document.getElementById('qNumber').textContent = `Question ${q.id} / ${QUESTIONS.length}`;
+  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ} / ${hostState.shuffledQuestions.length}`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
   document.getElementById('qTimer').textContent = '30';
   document.getElementById('qTimer').classList.remove('urgent');
   document.getElementById('nextQuestionBtn').disabled = true;
+  document.getElementById('skipTimerBtn').disabled = false;
 
-  // Hide answer reveal
   const ar = document.getElementById('answerReveal');
   ar.classList.remove('show', 'legal-answer', 'illegal-answer');
   ar.innerHTML = '';
 
   updateBetsDisplay();
-  broadcastToAll({ type: 'openBetting', questionId: q.id });
+  broadcastToAll({ type: 'openBetting', questionId: hostState.currentQ });
 
-  // Timer
   clearInterval(hostState.timerInterval);
   hostState.timerInterval = setInterval(() => {
     hostState.timeLeft--;
@@ -796,10 +812,19 @@ function nextQuestion() {
       clearInterval(hostState.timerInterval);
       timerEl.textContent = "⏱️ TIME'S UP!";
       playBuzzerSound();
-      // Auto-reveal after a brief pause for drama
+      document.getElementById('skipTimerBtn').disabled = true;
       setTimeout(() => revealAnswer(), 800);
     }
   }, 1000);
+}
+
+function skipTimer() {
+  if (!hostState.bettingOpen || hostState.roundRevealed) return;
+  clearInterval(hostState.timerInterval);
+  document.getElementById('qTimer').textContent = "⏱️ SKIPPED";
+  document.getElementById('skipTimerBtn').disabled = true;
+  playBuzzerSound();
+  revealAnswer();
 }
 
 function revealAnswer() {
@@ -807,11 +832,11 @@ function revealAnswer() {
   clearInterval(hostState.timerInterval);
   hostState.bettingOpen = false;
   hostState.roundRevealed = true;
+  document.getElementById('skipTimerBtn').disabled = true;
   broadcastToAll({ type: 'bettingClosed' });
 
-  const q = QUESTIONS[hostState.currentQ - 1];
+  const q = hostState.shuffledQuestions[hostState.currentQ - 1];
 
-  // Show answer bar
   const ar = document.getElementById('answerReveal');
   ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
   ar.innerHTML = `
@@ -819,29 +844,50 @@ function revealAnswer() {
     <div class="correction">${escHtml(q.correction)}</div>
   `;
 
-  // Pot distribution
-  let totalWrongPool = 0;
-  const correctTeams = [], incorrectTeams = [];
+  // Scoring Logic:
+  // 1. Correct teams earn their bet amount.
+  // 2. Incorrect teams lose their bet amount.
+  // 3. Teams that didn't answer lose a default penalty ($100 or minimum bet).
+  // 4. Any pool of lost money (from wrong bets + non-answers) is divided among correct teams!
+  // 5. If all teams are correct, correct teams simply earn their bet amount (without taking from anywhere).
 
-  for (const [pid, bet] of Object.entries(hostState.bets)) {
-    if (bet.choice === q.status) correctTeams.push(pid);
-    else { incorrectTeams.push(pid); totalWrongPool += bet.amount; }
+  let wrongPool = 0;
+  const correctTeams = [];
+  const incorrectTeams = [];
+  const nonBettingTeams = [];
+
+  for (const pid of Object.keys(hostState.teams)) {
+    const bet = hostState.bets[pid];
+    if (bet) {
+      if (bet.choice === q.status) correctTeams.push(pid);
+      else {
+        incorrectTeams.push(pid);
+        wrongPool += bet.amount;
+      }
+    } else {
+      // Didn't answer: penalty loss of $100 or remaining balance if < $100
+      nonBettingTeams.push(pid);
+      const team = hostState.teams[pid];
+      const penalty = Math.min(100, team.balance);
+      wrongPool += penalty;
+    }
   }
 
-  // Teams that didn't bet = automatic loss (no money lost since no bet, but marked as loss)
-  const nonBettingTeams = Object.keys(hostState.teams).filter(pid => !hostState.bets[pid]);
+  // Bonus share from wrong pool if any correct teams exist
+  const bonusShare = correctTeams.length > 0 ? Math.floor(wrongPool / correctTeams.length) : 0;
 
-  const share = correctTeams.length > 0 ? Math.floor(totalWrongPool / correctTeams.length) : 0;
-
-  // Apply results
   const results = {};
+
   for (const pid of correctTeams) {
     const team = hostState.teams[pid];
-    const gain = share;
+    const bet = hostState.bets[pid];
+    // Earn their bet amount + bonus share from wrong pool (if any)
+    const gain = bet.amount + bonusShare;
     team.balance += gain;
     results[pid] = { correct: true, delta: +gain };
     team.conn.send({ type: 'result', correct: true, delta: +gain, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
+
   for (const pid of incorrectTeams) {
     const team = hostState.teams[pid];
     const bet = hostState.bets[pid];
@@ -850,25 +896,27 @@ function revealAnswer() {
     results[pid] = { correct: false, delta: -bet.amount };
     team.conn.send({ type: 'result', correct: false, delta: -bet.amount, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
+
   for (const pid of nonBettingTeams) {
-    results[pid] = { correct: false, delta: 0, noBet: true };
     const team = hostState.teams[pid];
-    team.conn.send({ type: 'result', correct: null, delta: 0, newBalance: team.balance, answer: q.status, correction: q.correction });
+    const penalty = Math.min(100, team.balance);
+    team.balance -= penalty;
+    if (team.balance < 0) team.balance = 0;
+    results[pid] = { correct: false, delta: -penalty, noBet: true };
+    team.conn.send({ type: 'result', correct: false, delta: -penalty, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
 
-  // Update bet cards with colors and revealed choices
   updateBetsDisplayRevealed(results);
   updateLeaderboard();
   document.getElementById('nextQuestionBtn').disabled = false;
 
-  if (hostState.currentQ >= QUESTIONS.length) {
+  if (hostState.currentQ >= hostState.shuffledQuestions.length) {
     document.getElementById('nextQuestionBtn').textContent = '🏁 Final Challenge';
     document.getElementById('nextQuestionBtn').onclick = triggerFinalChallenge;
   }
 }
 
 function updateBetsDisplay() {
-  // During betting: show team name, balance, and bet amount (but NOT their choice)
   const grid = document.getElementById('betsGrid');
   grid.innerHTML = Object.entries(hostState.teams).map(([pid, team]) => {
     const bet = hostState.bets[pid];
@@ -884,7 +932,6 @@ function updateBetsDisplay() {
 }
 
 function updateBetsDisplayRevealed(results) {
-  // After reveal: color cards green/red, show choices and deltas
   const grid = document.getElementById('betsGrid');
   grid.innerHTML = Object.entries(hostState.teams).map(([pid, team]) => {
     const bet = hostState.bets[pid];
@@ -908,7 +955,10 @@ function updateBetsDisplayRevealed(results) {
             res.delta > 0 ? '+$' + res.delta.toLocaleString() :
             res.delta < 0 ? '-$' + Math.abs(res.delta).toLocaleString() : '—'
           }</div>
-        ` : `<div class="bet-info" style="color:#ef4444;">❌ No bet — Loss!</div>`}
+        ` : `
+          <div class="bet-info" style="color:#ef4444;">❌ No bet</div>
+          <div class="delta negative">-\$${Math.abs(res.delta).toLocaleString()}</div>
+        `}
       </div>`;
   }).join('');
 }
@@ -1112,10 +1162,10 @@ function showClientBetSubmitted() { showClientPanel('clientBetSubmitted'); }
 function showClientResult(data) {
   showClientPanel('clientResult');
   const el = document.getElementById('clientResult');
-  if (data.correct === null) {
-    el.innerHTML = `<div class="verdict" style="color:#94a3b8;">⏳ NO BET</div>
-      <p style="color:#94a3b8;">You didn't bet this round.</p>
-      <p style="margin-top:8px;font-size:0.85rem;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${data.answer}</strong></p>
+  if (data.correct === null || (data.correct === false && data.delta < 0 && !clientState.selectedChoice)) {
+    el.innerHTML = `<div class="verdict red">⏱️ NO BET PENALTY</div>
+      <div class="change red">-\$${Math.abs(data.delta).toLocaleString()}</div>
+      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${data.answer}</strong></p>
       <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
   } else if (data.correct) {
     el.innerHTML = `<div class="verdict green">✅ CORRECT!</div>

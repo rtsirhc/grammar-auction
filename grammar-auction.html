@@ -126,6 +126,17 @@ input:focus { border-color: #f59e0b; }
 }
 .team-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
 .team-chip .name { font-weight: 600; font-size: 0.85rem; }
+.kick-btn {
+  background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ef4444; border-radius: 50%; width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; cursor: pointer; padding: 0; margin-left: auto;
+  transition: all 0.2s; line-height: 1;
+}
+.kick-btn:hover { background: #ef4444; color: #fff; }
+.bet-card { position: relative; }
+.bet-card .kick-btn { position: absolute; top: 6px; right: 6px; opacity: 0.5; }
+.bet-card:hover .kick-btn { opacity: 1; }
 
 /* HOST GAME LAYOUT — SINGLE VIEWPORT */
 .game-layout {
@@ -539,56 +550,65 @@ function playWrongSound() {
 
 // ===== QUESTIONS =====
 const QUESTIONS = [
-  {id:1, sentence:"She walk to school every morning.", status:"ILLEGAL", correction:"Singular subject requires -s ('She walks...')."},
-  {id:2, sentence:"My brother plays video games after school.", status:"LEGAL", correction:"Correct simple present."},
-  {id:3, sentence:"They doesn't like eating vegetables.", status:"ILLEGAL", correction:"Plural subject requires don't ('They don't...')."},
-  {id:4, sentence:"He wakes up early every morning.", status:"LEGAL", correction:"Correct simple present habit."},
-  {id:5, sentence:"Do your mother cook breakfast every day?", status:"ILLEGAL", correction:"Singular subject requires Does ('Does your mother...')."},
-  {id:6, sentence:"My parents live in a small house.", status:"LEGAL", correction:"Correct simple present."},
-  {id:7, sentence:"She don't clean her room on Saturdays.", status:"ILLEGAL", correction:"Singular negative requires doesn't ('She doesn't...')."},
-  {id:8, sentence:"Does he brush his teeth after lunch?", status:"LEGAL", correction:"Correct simple present question."},
-  {id:9, sentence:"The students has lunch at twelve o'clock.", status:"ILLEGAL", correction:"Plural subject requires have ('The students have...')."},
-  {id:10, sentence:"I study English every afternoon.", status:"LEGAL", correction:"Correct daily routine verb."},
-  {id:11, sentence:"She goes always to bed at nine o'clock.", status:"ILLEGAL", correction:"Adverbs of frequency go before the main verb ('She always goes...')."},
-  {id:12, sentence:"I usually drink water in the morning.", status:"LEGAL", correction:"Correct frequency adverb placement."},
-  {id:13, sentence:"He eats never fast food for dinner.", status:"ILLEGAL", correction:"Frequency adverb goes before main verb ('He never eats...')."},
-  {id:14, sentence:"They often play soccer on Sundays.", status:"LEGAL", correction:"Correct adverb placement."},
-  {id:15, sentence:"We late are sometimes for school.", status:"ILLEGAL", correction:"Verb to be goes before frequency adverb ('We are sometimes late...')."},
-  {id:16, sentence:"She always does her homework after school.", status:"LEGAL", correction:"Correct frequency adverb placement."},
-  {id:17, sentence:"He wakes usually up at six in the morning.", status:"ILLEGAL", correction:"Adverb goes before verb ('He usually wakes up...')."},
-  {id:18, sentence:"Do you always take a shower before bed?", status:"LEGAL", correction:"Correct question word order with adverb."},
-  {id:19, sentence:"They go never to school on Sunday.", status:"ILLEGAL", correction:"Adverb goes before verb ('They never go...')."},
-  {id:20, sentence:"My father reads the newspaper every day.", status:"LEGAL", correction:"Correct expression of routine."},
-  {id:21, sentence:"My English class is on eight o'clock.", status:"ILLEGAL", correction:"Clock times require at ('...at eight o'clock')."},
-  {id:22, sentence:"We do not go to school on Saturdays.", status:"LEGAL", correction:"Days of the week take on."},
-  {id:23, sentence:"Her birthday is at October.", status:"ILLEGAL", correction:"Months take in ('...in October')."},
-  {id:24, sentence:"They watch TV in the evening.", status:"LEGAL", correction:"Correct time phrase."},
-  {id:25, sentence:"He goes to the park in Mondays.", status:"ILLEGAL", correction:"Days of the week take on ('...on Mondays')."},
-  {id:26, sentence:"She wakes up early at the morning.", status:"ILLEGAL", correction:"Time of day phrase is in the morning."},
-  {id:27, sentence:"Our lesson starts at 9:00 AM.", status:"LEGAL", correction:"Correct clock time preposition."},
-  {id:28, sentence:"The test is on Friday morning.", status:"LEGAL", correction:"Days take on."},
-  {id:29, sentence:"The cat is sleeping under the bed.", status:"LEGAL", correction:"Correct preposition of place."},
-  {id:30, sentence:"Turn at the left at the bank.", status:"ILLEGAL", correction:"Direction command is Turn left ('Turn left at the bank')."},
-  {id:31, sentence:"The library is next of the park.", status:"ILLEGAL", correction:"Compound preposition is next to ('...next to the park')."},
-  {id:32, sentence:"Go straight and turn right at the supermarket.", status:"LEGAL", correction:"Correct direction phrasing."},
-  {id:33, sentence:"The school is across from the bus station.", status:"LEGAL", correction:"Correct place preposition."},
-  {id:34, sentence:"He sits in front to the teacher.", status:"ILLEGAL", correction:"Compound preposition is in front of ('...in front of the teacher')."},
-  {id:35, sentence:"The keys are on the kitchen table.", status:"LEGAL", correction:"Correct place preposition."},
-  {id:36, sentence:"The park is between the hospital and the school.", status:"LEGAL", correction:"Correct preposition of position."},
-  {id:37, sentence:"She lives at Mexico City.", status:"ILLEGAL", correction:"Cities require in ('...in Mexico City')."},
-  {id:38, sentence:"The shoes are under of the bed.", status:"ILLEGAL", correction:"Remove of ('...under the bed')."},
-  {id:39, sentence:"There is twenty students in the classroom.", status:"ILLEGAL", correction:"Plural noun requires are ('There are twenty...')."},
-  {id:40, sentence:"There are three apples on the table.", status:"LEGAL", correction:"Correct plural form."},
-  {id:41, sentence:"He has two hundred dollars in his wallet.", status:"LEGAL", correction:"Correct number expression."},
-  {id:42, sentence:"I have fifteen years old.", status:"ILLEGAL", correction:"Age uses verb to be ('I am fifteen years old')."},
-  {id:43, sentence:"There are twelve months in one year.", status:"LEGAL", correction:"Correct numerical fact."},
-  {id:44, sentence:"She has three brother and one sister.", status:"ILLEGAL", correction:"Numbers greater than 1 take plural nouns ('...three brothers...')."},
-  {id:45, sentence:"There is one red car in front of the house.", status:"LEGAL", correction:"Correct singular count."},
-  {id:46, sentence:"My school has fifty classrooms.", status:"LEGAL", correction:"Correct quantity statement."},
-  {id:47, sentence:"There are a clock on the classroom wall.", status:"ILLEGAL", correction:"Singular noun requires is ('There is a clock...')."},
-  {id:48, sentence:"Turn right on Second Street and go straight.", status:"LEGAL", correction:"Correct ordinal number and direction."},
-  {id:49, sentence:"He has thirty years old.", status:"ILLEGAL", correction:"Age uses verb to be ('He is thirty years old')."},
-  {id:50, sentence:"Does she go to work by bus every day?", status:"LEGAL", correction:"Correct daily routine question."}
+  // Simple Present, Daily Routines, & Wh- Questions
+  {id: 1, sentence: "He wakes up at seven o'clock every day.", status: "LEGAL", correction: "Correct simple present routine."},
+  {id: 2, sentence: "She brushs her teeth after breakfast.", status: "ILLEGAL", correction: "Spelling mistake ('brushes')."},
+  {id: 3, sentence: "They don't play soccer on the weekend.", status: "LEGAL", correction: "Correct negative statement."},
+  {id: 4, sentence: "My father dosn't drink coffee in the evening.", status: "ILLEGAL", correction: "Spelling mistake ('doesn't')."},
+  {id: 5, sentence: "Do you watch television after school?", status: "LEGAL", correction: "Correct simple present question."},
+  {id: 6, sentence: "Does your brother likes to play video games?", status: "ILLEGAL", correction: "Grammar mistake ('like' instead of 'likes' with Does)."},
+  {id: 7, sentence: "Where does your best friend live?", status: "LEGAL", correction: "Correct Wh- question."},
+  {id: 8, sentence: "We have our English class on Wendsday.", status: "ILLEGAL", correction: "Spelling mistake ('Wednesday')."},
+  {id: 9, sentence: "She works in a hospital downtown.", status: "LEGAL", correction: "Correct affirmative sentence."},
+  {id: 10, sentence: "What time do the supermarket close?", status: "ILLEGAL", correction: "Grammar mistake ('does' the supermarket)."},
+
+  // Adverbs of Frequency & Wh- Questions
+  {id: 11, sentence: "I usually eat a sandwich for lunch.", status: "LEGAL", correction: "Correct adverb placement."},
+  {id: 12, sentence: "He is allways late for his morning class.", status: "ILLEGAL", correction: "Spelling mistake ('always')."},
+  {id: 13, sentence: "They never go to the cinema on Mondays.", status: "LEGAL", correction: "Correct negative frequency."},
+  {id: 14, sentence: "How ofen do you go to the gym?", status: "ILLEGAL", correction: "Spelling mistake ('often')."},
+  {id: 15, sentence: "Do you often read books in bed?", status: "LEGAL", correction: "Correct question with adverb."},
+  {id: 16, sentence: "We don't usally travel during the winter.", status: "ILLEGAL", correction: "Spelling mistake ('usually')."},
+  {id: 17, sentence: "The teacher is rarely angry with the students.", status: "LEGAL", correction: "Correct adverb placement after 'to be'."},
+  {id: 18, sentence: "She always eat breakfast in the morning.", status: "ILLEGAL", correction: "Grammar mistake ('eats' for singular subject)."},
+  {id: 19, sentence: "Does she always finish her homework on time?", status: "LEGAL", correction: "Correct question."},
+  {id: 20, sentence: "They sometimes are noisy in the library.", status: "ILLEGAL", correction: "Adverb placement (should be 'are sometimes' after the verb to be)."},
+
+  // Describing Things/People, Have/Has, & Wh- Questions
+  {id: 21, sentence: "My best friend has short curly hair.", status: "LEGAL", correction: "Correct description with 'has'."},
+  {id: 22, sentence: "She have two older brothers and a sister.", status: "ILLEGAL", correction: "Grammar mistake ('has' for singular subject)."},
+  {id: 23, sentence: "This backpack is heavy because it is full of books.", status: "LEGAL", correction: "Correct descriptive statement."},
+  {id: 24, sentence: "The new student is very tall and handsom.", status: "ILLEGAL", correction: "Spelling mistake ('handsome')."},
+  {id: 25, sentence: "Do they have a big garden in their house?", status: "LEGAL", correction: "Correct question."},
+  {id: 26, sentence: "He doesn't has a car, so he takes the bus.", status: "ILLEGAL", correction: "Grammar mistake ('doesn't have')."},
+  {id: 27, sentence: "Who do you play tennis with on Saturdays?", status: "LEGAL", correction: "Correct Wh- question."},
+  {id: 28, sentence: "Mary has a beautifull dress for the party.", status: "ILLEGAL", correction: "Spelling mistake ('beautiful')."},
+  {id: 29, sentence: "Is your new English teacher friendly?", status: "LEGAL", correction: "Correct descriptive question."},
+  {id: 30, sentence: "The cat has white paws and a black tale.", status: "ILLEGAL", correction: "Spelling mistake/homophone ('tail')."},
+
+  // Prepositions of Place and Time & Wh- Questions
+  {id: 31, sentence: "The keys are on the kitchen table.", status: "LEGAL", correction: "Correct preposition of place."},
+  {id: 32, sentence: "My birthday is in the 15th of August.", status: "ILLEGAL", correction: "Preposition mistake ('on' for dates)."},
+  {id: 33, sentence: "When is your brother's birthday?", status: "LEGAL", correction: "Correct Wh- question."},
+  {id: 34, sentence: "Our flight leaves in night, so we can sleep.", status: "ILLEGAL", correction: "Preposition mistake ('at night')."},
+  {id: 35, sentence: "Is the library across from the supermarket?", status: "LEGAL", correction: "Correct question."},
+  {id: 36, sentence: "Why dose she wake up so early?", status: "ILLEGAL", correction: "Spelling mistake ('does')."},
+  {id: 37, sentence: "We don't have any exams in December.", status: "LEGAL", correction: "Correct preposition of time."},
+  {id: 38, sentence: "She leaves her shoes under of the bed.", status: "ILLEGAL", correction: "Grammar mistake (remove 'of', just 'under')."},
+  {id: 39, sentence: "Does the movie start at eight o'clock?", status: "LEGAL", correction: "Correct question."},
+  {id: 40, sentence: "There is a small park in front the school.", status: "ILLEGAL", correction: "Grammar mistake (missing 'of', 'in front of')."},
+
+  // There is/are (Questions & Answers), Time Expressions, & Misc
+  {id: 41, sentence: "Yes, there is a bank next to the school.", status: "LEGAL", correction: "Correct short answer and statement."},
+  {id: 42, sentence: "No, there isn't any apples in the basket.", status: "ILLEGAL", correction: "Grammar mistake ('aren't any' for plural)."},
+  {id: 43, sentence: "Are there any good restaurants near the hotel?", status: "LEGAL", correction: "Correct question."},
+  {id: 44, sentence: "There aren't no chairs in the empty room.", status: "ILLEGAL", correction: "Double negative ('aren't any' or 'are no')."},
+  {id: 45, sentence: "The museum is closed once a week on Tuesdays.", status: "LEGAL", correction: "Correct time expression."},
+  {id: 46, sentence: "Yes, there are a clock on the classroom wall.", status: "ILLEGAL", correction: "Grammar mistake ('is a clock' for singular)."},
+  {id: 47, sentence: "We practice playing the guitar every day.", status: "LEGAL", correction: "Correct statement."},
+  {id: 48, sentence: "Does she visit her grandparents every weak?", status: "ILLEGAL", correction: "Spelling mistake/homophone ('week')."},
+  {id: 49, sentence: "No, there aren't any eggs in the fridge.", status: "LEGAL", correction: "Correct negative answer."},
+  {id: 50, sentence: "He play basketball with his friends on Saturday.", status: "ILLEGAL", correction: "Grammar mistake (missing 's', 'plays')."}
 ];
 
 // Helper: Shuffle Array (Fisher-Yates)
@@ -728,15 +748,41 @@ function handleClientMessage(conn, data) {
 
 function updateConnectedTeams() {
   const container = document.getElementById('connectedTeams');
-  const teams = Object.values(hostState.teams);
-  document.getElementById('connectedCount').textContent = teams.length;
-  if (teams.length === 0) {
+  const teamEntries = Object.entries(hostState.teams);
+  document.getElementById('connectedCount').textContent = teamEntries.length;
+  if (teamEntries.length === 0) {
     container.innerHTML = '<p style="color:#64748b;font-style:italic;font-size:0.85rem;">Waiting for students to join...</p>';
     return;
   }
-  container.innerHTML = teams.map(t =>
-    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}</div></div>`
+  container.innerHTML = teamEntries.map(([pid, t]) =>
+    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}</div><button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button></div>`
   ).join('');
+}
+
+function kickTeam(peerId) {
+  const t = hostState.teams[peerId];
+  if (!t) return;
+  if (confirm(`Are you sure you want to remove team "${t.name}"?`)) {
+    if (t.conn) {
+      try { t.conn.send({type: 'KICK'}); } catch(e){}
+      setTimeout(() => { try { t.conn.close(); } catch(e){} }, 500);
+    }
+    delete hostState.teams[peerId];
+    if (hostState.bets) delete hostState.bets[peerId];
+    
+    // Remove from fcTeamOrder if it exists
+    if (hostState.fcTeamOrder) {
+      hostState.fcTeamOrder = hostState.fcTeamOrder.filter(([id]) => id !== peerId);
+    }
+
+    updateConnectedTeams();
+    updateStartBtn();
+    
+    if (hostState.gameStarted) {
+      if (typeof updateBetsUI === 'function') updateBetsUI();
+      if (hostState.bettingOpen && typeof checkAllBetsIn === 'function') checkAllBetsIn();
+    }
+  }
 }
 
 function updateStartBtn() {
@@ -922,6 +968,7 @@ function updateBetsDisplay() {
     const bet = hostState.bets[pid];
     return `
       <div class="bet-card ${bet ? 'submitted' : ''}">
+        <button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button>
         <div class="team-name">${escHtml(team.name)}</div>
         <div class="balance">\$${team.balance.toLocaleString()}</div>
         ${bet
@@ -944,6 +991,7 @@ function updateBetsDisplayRevealed(results) {
     }
     return `
       <div class="${cardClass}">
+        <button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button>
         <div class="team-name">${escHtml(team.name)}</div>
         <div class="balance">\$${team.balance.toLocaleString()}</div>
         ${bet ? `
@@ -1094,6 +1142,10 @@ function connectToHost() {
 
 function handleHostMessage(data) {
   switch (data.type) {
+    case 'KICK':
+      document.getElementById('clientScreen').innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;text-align:center;padding:20px;"><h2>You have been removed from the game by the host.</h2></div>';
+      if (clientState.conn) clientState.conn.close();
+      break;
     case 'joined':
       clientState.balance = data.balance;
       document.getElementById('clientJoin').classList.add('hidden');

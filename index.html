@@ -765,6 +765,26 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
   .choice-buttons { gap:8px; }
   .choice-btn { min-height:72px; font-size:.95rem; }
 }
+
+.topic-picker-card { min-width: 0; }
+.topic-picker-title { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px; color:var(--park-purple); font-family:Impact,sans-serif; letter-spacing:.05em; text-transform:uppercase; }
+.topic-picker-title small { color:var(--arena-muted); font:600 .68rem "Trebuchet MS",sans-serif; letter-spacing:0; text-transform:none; }
+.level-checks { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:10px; }
+.level-check, .topic-check { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.level-check { padding:5px 9px; border:2px solid var(--park-ink); border-radius:4px; background:var(--park-yellow); font-size:.72rem; box-shadow:2px 2px 0 var(--park-ink); }
+.level-check input, .topic-check input { accent-color:var(--park-red); }
+.topic-checks { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:5px 10px; max-height:150px; overflow:auto; padding-right:4px; }
+.topic-check { color:var(--park-ink); font-size:.76rem; font-weight:700; }
+.topic-check input { flex:none; }
+.topic-picker-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; color:var(--park-purple); font-size:.72rem; font-weight:800; }
+.topic-picker-actions .btn { min-height:30px; padding:5px 9px; font-size:.62rem !important; }
+#topicPickerLive { flex:none; }
+#topicPickerLive .topic-checks { max-height:118px; }
+@media (max-width: 768px) {
+  .topic-checks { max-height:126px; }
+  .topic-picker-title { display:block; }
+  .topic-picker-title small { display:block; margin-top:3px; }
+}
 </style>
 </head>
 <body>
@@ -813,6 +833,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
           <p style="color:#64748b;font-style:italic;font-size:0.85rem;">Waiting for students to join...</p>
         </div>
       </div>
+      <div class="card topic-picker-card" id="topicPickerSetup"></div>
       <button class="btn btn-gold btn-lg" id="startGameBtn" onclick="startGame()" disabled>🎮 Start Game</button>
     </div>
     <div class="card qr-section">
@@ -842,6 +863,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       </div>
       <!-- RIGHT COLUMN: Leaderboard -->
       <div class="game-right">
+        <div class="topic-picker-card" id="topicPickerLive"></div>
         <div class="leaderboard-panel">
           <h3 class="gold">🏆 Leaderboard</h3>
           <div class="lb-rows" id="lbRows"></div>
@@ -1066,6 +1088,70 @@ const QUESTIONS = [
   {id: 50, sentence: "He play basketball with his friends on Saturday.", status: "ILLEGAL", correction: "Grammar mistake (missing 's', 'plays')."}
 ];
 
+// The teacher can mix these themes and levels before or during a game.
+const TOPIC_CATALOG = [
+  { id: 'greetings', label: 'Greetings & introductions' },
+  { id: 'polite', label: 'Polite expressions' },
+  { id: 'cafe', label: 'In a café' },
+  { id: 'clothing', label: 'Clothing store' },
+  { id: 'number', label: 'Singular & plural' },
+  { id: 'articles', label: 'Articles: a / an' },
+  { id: 'doDoes', label: 'Questions with do / does' },
+  { id: 'quantity', label: 'How much / how many' },
+  { id: 'requests', label: 'Polite requests' },
+  { id: 'conversations', label: 'Customer–clerk conversations' },
+  { id: 'routines', label: 'Routines & frequency' },
+  { id: 'descriptions', label: 'Descriptions' },
+  { id: 'placeTime', label: 'Place & time' },
+  { id: 'thereIs', label: 'There is / there are' }
+];
+const LEVELS = ['A1', 'A2', 'B1', 'B2'];
+
+const EXTRA_QUESTIONS = [
+  {id:101, topic:'greetings', level:'A1', sentence:'Nice to meet you. My name is Carla.', status:'LEGAL', correction:'Correct introduction.'},
+  {id:102, topic:'greetings', level:'A1', sentence:'Hello, I am Diego. What is your name?', status:'LEGAL', correction:'Correct greeting and question.'},
+  {id:103, topic:'polite', level:'A1', sentence:'Please close the door.', status:'LEGAL', correction:'Correct polite expression.'},
+  {id:104, topic:'polite', level:'A1', sentence:'Give me your notebook, now.', status:'ILLEGAL', correction:'Use a polite request: Please give me your notebook.'},
+  {id:105, topic:'cafe', level:'A1', sentence:'I would like a hot chocolate, please.', status:'LEGAL', correction:'Correct café order.'},
+  {id:106, topic:'cafe', level:'A2', sentence:'Can I have the bill, please?', status:'LEGAL', correction:'Correct way to ask for the bill.'},
+  {id:107, topic:'cafe', level:'A1', sentence:'I like a sandwich, please.', status:'ILLEGAL', correction:'Say I would like a sandwich, please.'},
+  {id:108, topic:'clothing', level:'A1', sentence:'Do you have these shoes in blue?', status:'LEGAL', correction:'Correct question about color.'},
+  {id:109, topic:'clothing', level:'A2', sentence:'Can I try this jacket on?', status:'LEGAL', correction:'Correct request in a clothing store.'},
+  {id:110, topic:'clothing', level:'A1', sentence:'How much are this trousers?', status:'ILLEGAL', correction:'Say How much are these trousers? or How much is this pair of trousers?'},
+  {id:111, topic:'number', level:'A1', sentence:'These books are new.', status:'LEGAL', correction:'These is used with plural nouns.'},
+  {id:112, topic:'number', level:'A1', sentence:'This shoes are very comfortable.', status:'ILLEGAL', correction:'Say These shoes are very comfortable.'},
+  {id:113, topic:'articles', level:'A1', sentence:'She has an orange umbrella.', status:'LEGAL', correction:'An comes before a vowel sound.'},
+  {id:114, topic:'articles', level:'A1', sentence:'He is a excellent student.', status:'ILLEGAL', correction:'Say an excellent student.'},
+  {id:115, topic:'doDoes', level:'A1', sentence:'Does your sister play tennis?', status:'LEGAL', correction:'Does is correct with she / he / it.'},
+  {id:116, topic:'doDoes', level:'A2', sentence:'Do he work near the university?', status:'ILLEGAL', correction:'Say Does he work near the university?'},
+  {id:117, topic:'quantity', level:'A1', sentence:'How many apples do we need?', status:'LEGAL', correction:'How many is used with countable plural nouns.'},
+  {id:118, topic:'quantity', level:'A2', sentence:'How much students are in your class?', status:'ILLEGAL', correction:'Say How many students.'},
+  {id:119, topic:'requests', level:'A2', sentence:'Could you help me with this exercise, please?', status:'LEGAL', correction:'Correct polite request.'},
+  {id:120, topic:'requests', level:'B1', sentence:'Would you mind to repeat the question?', status:'ILLEGAL', correction:'Say Would you mind repeating the question?'},
+  {id:121, topic:'conversations', level:'A2', sentence:'Clerk: Can I help you? Customer: I am just looking, thanks.', status:'LEGAL', correction:'Natural customer–clerk exchange.'},
+  {id:122, topic:'conversations', level:'B1', sentence:'Customer: I would like return this shirt. Clerk: Do you have the receipt?', status:'ILLEGAL', correction:'Say I would like to return this shirt.'},
+  {id:123, topic:'requests', level:'B2', sentence:'Would it be possible for you to send me the revised schedule by Friday?', status:'LEGAL', correction:'Correct formal request.'},
+  {id:124, topic:'doDoes', level:'B1', sentence:'How long does the new student usually take to settle in?', status:'LEGAL', correction:'Correct do / does question structure.'},
+  {id:125, topic:'quantity', level:'B2', sentence:'There is a great deal of information, but only a few reliable sources.', status:'LEGAL', correction:'Correct quantity expressions.'},
+  {id:126, topic:'articles', level:'B1', sentence:'She hopes to become an engineer and work for an international company.', status:'LEGAL', correction:'Correct use of a / an.'},
+  {id:127, topic:'conversations', level:'B2', sentence:'Customer: I was wondering whether you could offer a refund. Clerk: Certainly, provided you have the receipt.', status:'LEGAL', correction:'Natural formal customer–clerk exchange.'},
+  {id:128, topic:'clothing', level:'B1', sentence:'This jacket is slightly too loose around the shoulders, although the sleeves fit perfectly.', status:'LEGAL', correction:'Correct clothing description.'},
+  {id:129, topic:'polite', level:'B2', sentence:'I am terribly sorry, but would you mind lowering your voice a little?', status:'LEGAL', correction:'Correct softening and polite expression.'},
+  {id:130, topic:'number', level:'B1', sentence:'Neither of these suggestions are practical for a class of thirty students.', status:'ILLEGAL', correction:'In formal grammar, say Neither of these suggestions is practical.'}
+];
+
+const EXISTING_TOPIC_MAP = {
+  routines: [1,20], descriptions: [21,30], placeTime: [31,40], thereIs: [41,50]
+};
+for (const [topic, range] of Object.entries(EXISTING_TOPIC_MAP)) {
+  QUESTIONS.forEach(q => { if (q.id >= range[0] && q.id <= range[1]) q.topic = topic; });
+}
+QUESTIONS.forEach(q => {
+  if (!q.topic) q.topic = q.id <= 20 ? 'routines' : q.id <= 30 ? 'descriptions' : q.id <= 40 ? 'placeTime' : 'thereIs';
+  q.level = q.id % 5 === 0 ? 'A2' : 'A1';
+});
+QUESTIONS.push(...EXTRA_QUESTIONS);
+
 // Helper: Shuffle Array (Fisher-Yates)
 function shuffleArray(arr) {
   const shuffled = [...arr];
@@ -1102,6 +1188,7 @@ let role = null, roomCode = '', peer = null, joinUrl = '';
 const hostState = {
   teamCount: 4, teams: {}, currentQ: 0, bets: {},
   shuffledQuestions: [],
+  topicFilters: TOPIC_CATALOG.map(t => t.id), levelFilters: [...LEVELS],
   timerInterval: null, timeLeft: 30, bettingOpen: false,
   gameStarted: false, roundRevealed: false,
   finalChallengeActive: false, fcTeamOrder: [], fcCurrentIndex: 0
@@ -1111,6 +1198,42 @@ const clientState = {
   conn: null, teamName: '', balance: 1000,
   selectedChoice: null, betSubmitted: false, peerId: null
 };
+
+function filteredQuestionBank() {
+  const topics = hostState.topicFilters.length ? hostState.topicFilters : TOPIC_CATALOG.map(t => t.id);
+  const levels = hostState.levelFilters.length ? hostState.levelFilters : [...LEVELS];
+  return QUESTIONS.filter(q => topics.includes(q.topic) && levels.includes(q.level));
+}
+
+function renderTopicPicker() {
+  const topicsMarkup = TOPIC_CATALOG.map(topic => `
+    <label class="topic-check"><input type="checkbox" data-topic-filter="${topic.id}" ${hostState.topicFilters.includes(topic.id) ? 'checked' : ''}><span>${topic.label}</span></label>`).join('');
+  const levelsMarkup = LEVELS.map(level => `
+    <label class="level-check"><input type="checkbox" data-level-filter="${level}" ${hostState.levelFilters.includes(level) ? 'checked' : ''}><b>${level}</b></label>`).join('');
+  const markup = `<div class="topic-picker-title"><span>🎟️ Question mix</span><small>Choose what enters the next round</small></div>
+    <div class="level-checks">${levelsMarkup}</div><div class="topic-checks">${topicsMarkup}</div>
+    <div class="topic-picker-actions"><button class="btn btn-blue btn-sm" type="button" onclick="selectAllQuestionFilters()">All themes</button><span id="topicPoolCount">${filteredQuestionBank().length} cards ready</span></div>`;
+  ['topicPickerSetup', 'topicPickerLive'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = markup; });
+  document.querySelectorAll('[data-topic-filter], [data-level-filter]').forEach(input => input.addEventListener('change', handleQuestionFilterChange));
+}
+
+function handleQuestionFilterChange() {
+  hostState.topicFilters = [...document.querySelectorAll('[data-topic-filter]:checked')].map(input => input.dataset.topicFilter);
+  hostState.levelFilters = [...document.querySelectorAll('[data-level-filter]:checked')].map(input => input.dataset.levelFilter);
+  if (!hostState.topicFilters.length) hostState.topicFilters = TOPIC_CATALOG.map(t => t.id);
+  if (!hostState.levelFilters.length) hostState.levelFilters = [...LEVELS];
+  const used = hostState.shuffledQuestions.slice(0, hostState.currentQ);
+  const usedIds = new Set(used.map(q => q.id));
+  const available = shuffleArray(filteredQuestionBank().filter(q => !usedIds.has(q.id)));
+  hostState.shuffledQuestions = [...used, ...available];
+  document.querySelectorAll('#topicPoolCount').forEach(el => el.textContent = `${filteredQuestionBank().length} cards ready`);
+}
+
+function selectAllQuestionFilters() {
+  hostState.topicFilters = TOPIC_CATALOG.map(t => t.id);
+  hostState.levelFilters = [...LEVELS];
+  renderTopicPicker();
+}
 
 // ===== AUTO-DETECT ROLE =====
 (function() {
@@ -1130,6 +1253,7 @@ function initHost() {
   document.getElementById('roleSelect').classList.add('hidden');
   document.getElementById('hostScreen').classList.remove('hidden');
   document.getElementById('hostRoomCode').textContent = roomCode;
+  renderTopicPicker();
 
   joinUrl = `${window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
   document.getElementById('joinLinkDisplay').textContent = joinUrl;
@@ -1259,8 +1383,8 @@ function copyJoinLink() {
 // ===== GAME FLOW =====
 function startGame() {
   hostState.gameStarted = true;
-  // Randomize questions list on game start
-  hostState.shuffledQuestions = shuffleArray(QUESTIONS);
+  // Randomize only the cards matching the teacher's current mix.
+  hostState.shuffledQuestions = shuffleArray(filteredQuestionBank());
   hostState.currentQ = 0;
 
   document.getElementById('hostSetup').classList.add('hidden');
@@ -1272,7 +1396,7 @@ function startGame() {
 
 function nextQuestion() {
   if (!hostState.shuffledQuestions || hostState.shuffledQuestions.length === 0) {
-    hostState.shuffledQuestions = shuffleArray(QUESTIONS);
+    hostState.shuffledQuestions = shuffleArray(filteredQuestionBank());
   }
 
   if (hostState.currentQ >= hostState.shuffledQuestions.length) {

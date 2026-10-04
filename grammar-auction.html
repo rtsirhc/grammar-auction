@@ -330,6 +330,9 @@ input:focus { border-color: #f59e0b; }
   --lime: #b6f36b;
 }
 
+/* Keep the app's screen switching reliable when a screen also has a layout rule. */
+#roleSelect.hidden, #hostScreen.hidden, #clientScreen.hidden { display: none !important; }
+
 html { background: var(--night); }
 body {
   color: var(--ink);
@@ -605,6 +608,162 @@ body::before { opacity: .7; background-size: 56px 56px; mask-image: linear-gradi
   .game-layout { grid-template-columns:1fr; }
   .game-right { max-height:230px; }
   .host-controls { position:sticky; bottom:8px; z-index:2; }
+}
+
+/* =========================
+   CIRCUS PARK / FUNFAIR EDITION
+   Bright, theatrical layout direction. This intentionally replaces the
+   dark dashboard treatment above while keeping the game DOM and logic.
+   ========================= */
+:root {
+  --park-cream: #fff4d9;
+  --park-paper: #fffaf0;
+  --park-ink: #24153b;
+  --park-red: #f24846;
+  --park-yellow: #ffd84d;
+  --park-blue: #3eb9e8;
+  --park-purple: #7749c7;
+  --park-green: #7dcf70;
+  --park-pink: #f58bb2;
+  --park-line: #2e1d49;
+  --park-shadow: 7px 7px 0 var(--park-ink);
+}
+
+html, body { background: var(--park-cream) !important; color: var(--park-ink) !important; }
+body {
+  font-family: "Trebuchet MS", "Arial Rounded MT Bold", sans-serif;
+  background-image:
+    radial-gradient(circle at 12% 15%, rgba(245,139,178,.44) 0 4px, transparent 5px),
+    radial-gradient(circle at 76% 23%, rgba(62,185,232,.42) 0 5px, transparent 6px),
+    radial-gradient(circle at 32% 84%, rgba(125,207,112,.4) 0 4px, transparent 5px),
+    linear-gradient(135deg, rgba(255,255,255,.55), transparent 45%),
+    var(--park-cream) !important;
+  background-size: 91px 83px, 127px 119px, 113px 97px, auto, auto !important;
+}
+body::before { opacity: .38 !important; background-image: repeating-linear-gradient(90deg, rgba(242,72,70,.08) 0 30px, transparent 30px 60px) !important; background-size: 100% 100% !important; mask-image: none !important; }
+body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.14; background-image: radial-gradient(circle, var(--park-red) 0 3px, transparent 4px), radial-gradient(circle, var(--park-blue) 0 3px, transparent 4px), radial-gradient(circle, var(--park-yellow) 0 3px, transparent 4px); background-size: 180px 150px, 240px 210px, 310px 280px; background-position: 4% 18%, 74% 32%, 40% 76%; }
+
+.gold, .glow-text { color: var(--park-red) !important; text-shadow: 3px 3px 0 var(--park-yellow) !important; }
+.green { color: #278c4b !important; }
+.red { color: var(--park-red) !important; }
+.card, .leaderboard-panel, .betting-panel, .client-result, .client-waiting, .bet-submitted-msg {
+  border: 3px solid var(--park-line) !important;
+  border-radius: 8px !important;
+  background: var(--park-paper) !important;
+  color: var(--park-ink) !important;
+  box-shadow: var(--park-shadow) !important;
+  backdrop-filter: none !important;
+}
+.btn {
+  color: var(--park-ink) !important;
+  border: 3px solid var(--park-ink) !important;
+  border-radius: 5px !important;
+  clip-path: none !important;
+  box-shadow: 4px 4px 0 var(--park-ink) !important;
+  font-family: Impact, "Arial Narrow", sans-serif !important;
+  font-size: .78rem !important;
+  letter-spacing: .1em !important;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease !important;
+}
+.btn::after { display:none !important; }
+.btn:hover { transform: translate(-2px,-3px) rotate(-1deg) !important; filter: saturate(1.25) brightness(1.04) !important; box-shadow: 7px 8px 0 var(--park-ink), 0 0 0 4px rgba(255,216,77,.45) !important; }
+.btn:active { transform: translate(3px,3px) rotate(1deg) !important; box-shadow: 1px 1px 0 var(--park-ink) !important; }
+.btn-gold { background: var(--park-yellow) !important; }
+.btn-blue { background: var(--park-blue) !important; }
+.btn-green { background: var(--park-green) !important; }
+.btn-red { color: white !important; background: var(--park-red) !important; }
+
+/* Home: circus marquee and ticket booth */
+#roleSelect {
+  position:relative; display:grid !important; grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr) !important; grid-template-rows:auto 1fr auto !important;
+  max-width:1240px !important; min-height:100vh; gap:22px 54px !important; padding:52px 38px 38px !important; text-align:left !important; overflow:hidden;
+}
+#roleSelect::before { content:"✦  ✷  ✦  ✷  ✦"; position:absolute; top:13px; left:0; right:0; color:var(--park-purple); font-size:1.3rem; letter-spacing:2.3em; text-align:center; }
+#roleSelect h1 { grid-column:1 !important; grid-row:1 / 3 !important; align-self:center !important; max-width:620px !important; color:var(--park-red) !important; font-family:Impact, "Arial Black", sans-serif !important; font-size:clamp(4rem,8vw,8rem) !important; line-height:.82 !important; letter-spacing:.025em !important; text-transform:uppercase !important; text-shadow:8px 8px 0 var(--park-yellow), 13px 13px 0 var(--park-ink) !important; transform:rotate(-3deg); }
+#roleSelect h1::after { content:"THE GRAMMAR CIRCUS" !important; display:block; margin-top:28px; color:var(--park-blue) !important; font:900 clamp(.9rem,1.8vw,1.4rem)/1 Impact, sans-serif !important; letter-spacing:.24em; text-shadow:3px 3px 0 var(--park-ink) !important; }
+#roleSelect .subtitle { grid-column:1 !important; grid-row:3 !important; align-self:end; max-width:500px; margin:0 !important; color:var(--park-ink) !important; font-weight:800; font-size:1rem; line-height:1.45; transform:rotate(-1deg); }
+#roleSelect::after { grid-column:2 !important; grid-row:3 !important; justify-self:end; content:"ADMIT ONE  •  PLAY LOUD  •  LEARN LOUDER" !important; color:var(--park-purple) !important; font:900 .7rem Impact,sans-serif; letter-spacing:.15em; }
+.role-cards { grid-column:2 !important; grid-row:1 / 3 !important; display:flex !important; flex-direction:column !important; gap:22px !important; width:100% !important; align-self:center; }
+.role-card { position:relative; width:100% !important; min-height:210px !important; padding:30px 28px !important; display:flex !important; align-items:flex-start !important; justify-content:flex-end !important; border:3px solid var(--park-ink) !important; border-radius:8px !important; background:var(--park-yellow) !important; box-shadow:var(--park-shadow) !important; text-align:left !important; overflow:hidden; transform:rotate(2deg); }
+.role-card:nth-child(2) { background:var(--park-blue) !important; transform:rotate(-2deg); }
+.role-card::before { content:""; position:absolute; inset:0 0 auto 0; height:45px; background:repeating-linear-gradient(135deg, rgba(255,255,255,.62) 0 15px, transparent 15px 30px); opacity:.65; }
+.role-card::after { content:"TEACHER TICKET"; position:absolute; right:18px; top:17px; color:var(--park-red); font:900 .72rem Impact,sans-serif; letter-spacing:.1em; transform:rotate(2deg); }
+.role-card:nth-child(2)::after { content:"PLAYER TICKET"; color:var(--park-purple); transform:rotate(-2deg); }
+.role-card:hover, .role-card:nth-child(2):hover { transform:translateY(-8px) rotate(0deg) !important; border-color:var(--park-red) !important; }
+.role-card .icon { position:absolute; right:24px; bottom:28px; font-size:4rem; margin:0; filter:drop-shadow(4px 4px 0 rgba(36,21,59,.35)); }
+.role-card h2 { color:var(--park-ink) !important; margin:0 0 7px !important; font:900 1.35rem/1 Impact,"Arial Narrow",sans-serif !important; letter-spacing:.06em; text-transform:uppercase; }
+.role-card p { max-width:240px; color:var(--park-ink) !important; font-weight:700; font-size:.84rem; line-height:1.45; }
+
+/* Host: concession stand / game board */
+#hostScreen { background:var(--park-cream) !important; }
+.host-header { min-height:72px !important; padding:12px 22px !important; background:var(--park-red) !important; border:0 !important; border-bottom:6px solid var(--park-yellow) !important; box-shadow:0 5px 0 var(--park-ink) !important; }
+.host-header h1 { color:#fff !important; font:900 1.35rem/1 Impact,sans-serif !important; letter-spacing:.1em; text-shadow:3px 3px 0 var(--park-ink) !important; }
+.host-header h1::after { content:" • BIG TOP LIVE" !important; color:var(--park-yellow) !important; }
+.room-badge { border:3px solid var(--park-ink) !important; border-radius:4px !important; background:var(--park-yellow) !important; color:var(--park-ink) !important; box-shadow:3px 3px 0 var(--park-ink) !important; }
+.setup-panel { grid-template-columns:minmax(0,1fr) minmax(350px,430px) !important; gap:24px !important; padding:24px !important; background:repeating-linear-gradient(90deg, rgba(242,72,70,.06) 0 54px, transparent 54px 108px); }
+.setup-panel .card h3, .qr-section h3, .leaderboard-panel h3 { color:var(--park-purple) !important; font-family:Impact,sans-serif !important; letter-spacing:.12em; text-transform:uppercase; text-shadow:2px 2px 0 var(--park-yellow); }
+.team-count-btn { border:3px solid var(--park-ink) !important; border-radius:4px !important; background:white !important; color:var(--park-ink) !important; box-shadow:2px 2px 0 var(--park-ink); }
+.team-count-btn.active, .team-count-btn:hover { background:var(--park-green) !important; border-color:var(--park-ink) !important; box-shadow:3px 3px 0 var(--park-ink); }
+.team-chip { border:2px dashed var(--park-purple) !important; border-radius:4px !important; background:#f3e8ff !important; color:var(--park-ink); }
+.team-chip .dot { background:var(--park-green); box-shadow:none; }
+.qr-section { background:var(--park-yellow) !important; transform:rotate(1deg); }
+.qr-section::after { content:"TAKE YOUR TICKET" !important; color:var(--park-red) !important; font:900 .7rem Impact,sans-serif; letter-spacing:.12em; }
+.qr-section canvas, .qr-section img { border:8px solid white !important; border-radius:0 !important; box-shadow:5px 5px 0 var(--park-ink) !important; }
+.join-link { background:white !important; border:2px dashed var(--park-ink) !important; color:var(--park-ink) !important; border-radius:3px !important; }
+
+/* Question stage */
+.game-layout { grid-template-columns:minmax(0,1fr) 300px !important; gap:20px !important; padding:20px !important; background:repeating-linear-gradient(0deg, rgba(119,73,199,.06) 0 42px, transparent 42px 84px); }
+.question-display { border:4px solid var(--park-ink) !important; border-radius:7px !important; background:var(--park-blue) !important; box-shadow:var(--park-shadow) !important; transform:rotate(-.4deg); }
+.q-number { color:var(--park-red) !important; font:900 .95rem Impact,sans-serif; letter-spacing:.14em; text-transform:uppercase; text-shadow:1px 1px 0 white; }
+.q-sentence { color:var(--park-ink) !important; font-weight:900; }
+.q-timer { color:var(--park-red) !important; font-family:Impact,sans-serif; text-shadow:2px 2px 0 white; }
+.bet-card { border:3px solid var(--park-ink) !important; border-radius:6px !important; background:var(--park-paper) !important; box-shadow:4px 4px 0 rgba(36,21,59,.55) !important; }
+.bet-card.submitted { border-color:var(--park-orange, #ef791e) !important; background:#fff0c4 !important; }
+.bet-card.correct-reveal { border-color:#278c4b !important; background:#e5f8d6 !important; }
+.bet-card.incorrect-reveal, .bet-card.no-bet-reveal { border-color:var(--park-red) !important; background:#ffe0e9 !important; }
+.leaderboard-panel { background:var(--park-purple) !important; color:white !important; }
+.leaderboard-panel h3 { color:var(--park-yellow) !important; text-shadow:2px 2px 0 var(--park-ink) !important; }
+.lb-row { border:2px solid var(--park-ink) !important; border-radius:4px !important; background:var(--park-paper) !important; color:var(--park-ink); }
+.lb-row:first-child { background:var(--park-yellow) !important; }
+.lb-balance { color:var(--park-red) !important; }
+.host-controls { border:3px solid var(--park-ink) !important; border-radius:5px !important; background:var(--park-yellow) !important; }
+
+/* Player ticket / controls */
+#clientScreen { max-width:560px !important; padding:20px 16px !important; background:var(--park-cream); }
+.client-join { min-height:92vh; }
+.client-join h2 { color:var(--park-red) !important; font:900 2.5rem/.9 Impact,sans-serif !important; letter-spacing:.04em; text-transform:uppercase; text-shadow:3px 3px 0 var(--park-yellow) !important; }
+.client-join h2::before { content:"PLAYER TICKET / " !important; color:var(--park-purple) !important; font:900 .45em/1 Impact,sans-serif; text-shadow:none !important; }
+.client-join input, .amount-input-row input { border:3px solid var(--park-ink) !important; border-radius:4px !important; background:white !important; color:var(--park-ink) !important; box-shadow:3px 3px 0 var(--park-ink) !important; }
+.client-join label, .amount-section label { color:var(--park-purple) !important; font-weight:900 !important; text-transform:uppercase; letter-spacing:.08em; }
+.client-header { border:4px solid var(--park-ink) !important; border-radius:6px !important; background:var(--park-yellow) !important; box-shadow:var(--park-shadow) !important; }
+.client-team-name { color:var(--park-ink) !important; font:900 1.2rem Impact,sans-serif; }
+.client-balance { color:var(--park-red) !important; font:900 2.5rem Impact,sans-serif; text-shadow:2px 2px 0 white !important; }
+.client-status { color:var(--park-ink) !important; font-weight:800; }
+.betting-panel, .client-result, .client-waiting, .bet-submitted-msg { border:3px solid var(--park-ink) !important; background:white !important; box-shadow:var(--park-shadow) !important; }
+.betting-panel h3 { color:var(--park-purple) !important; font:900 1.25rem Impact,sans-serif; letter-spacing:.05em; }
+.choice-btn { border:4px solid var(--park-ink) !important; border-radius:6px !important; box-shadow:4px 4px 0 var(--park-ink); min-height:82px; transition:transform .12s,box-shadow .12s,filter .12s !important; }
+.choice-btn:hover { transform:translateY(-4px) rotate(-1deg); filter:saturate(1.2); }
+.choice-btn.legal-btn { color:var(--park-ink) !important; background:var(--park-green) !important; }
+.choice-btn.legal-btn.selected { background:var(--park-yellow) !important; box-shadow:1px 1px 0 var(--park-ink) !important; transform:translate(3px,3px) !important; }
+.choice-btn.illegal-btn { color:var(--park-ink) !important; background:var(--park-pink) !important; }
+.choice-btn.illegal-btn.selected { background:var(--park-red) !important; color:white !important; box-shadow:1px 1px 0 var(--park-ink) !important; transform:translate(3px,3px) !important; }
+
+@media (max-width: 900px) {
+  #roleSelect { grid-template-columns:1fr !important; grid-template-rows:auto auto auto auto !important; gap:22px !important; padding:48px 20px 28px !important; }
+  #roleSelect h1, #roleSelect .subtitle, #roleSelect::after, .role-cards { grid-column:1 !important; }
+  #roleSelect h1 { grid-row:1 !important; font-size:clamp(3.5rem,15vw,6rem) !important; }
+  #roleSelect .subtitle { grid-row:2 !important; }
+  .role-cards { grid-row:3 !important; }
+  #roleSelect::after { grid-row:4 !important; justify-self:start; }
+}
+@media (max-width: 768px) {
+  .setup-panel { grid-template-columns:1fr !important; padding:15px !important; }
+  .qr-section { min-height:430px; }
+  .game-layout { grid-template-columns:1fr !important; padding:14px !important; }
+  .game-right { max-height:240px; }
+  .host-controls { position:sticky; bottom:8px; z-index:3; }
+  .choice-buttons { gap:8px; }
+  .choice-btn { min-height:72px; font-size:.95rem; }
 }
 </style>
 </head>

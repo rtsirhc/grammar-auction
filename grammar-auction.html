@@ -1348,7 +1348,7 @@ function revealAnswer() {
   // Scoring Logic:
   // 1. Correct teams earn their bet amount.
   // 2. Incorrect teams lose their bet amount.
-  // 3. Teams that didn't answer lose a default penalty ($100 or minimum bet).
+  // 3. Teams that didn't answer lose 20% of their current balance.
   // 4. Any pool of lost money (from wrong bets + non-answers) is divided among correct teams!
   // 5. If all teams are correct, correct teams simply earn their bet amount (without taking from anywhere).
 
@@ -1366,10 +1366,10 @@ function revealAnswer() {
         wrongPool += bet.amount;
       }
     } else {
-      // Didn't answer: penalty loss of $100 or remaining balance if < $100
+      // Didn't answer: make skipping meaningful at every score level.
       nonBettingTeams.push(pid);
       const team = hostState.teams[pid];
-      const penalty = Math.min(100, team.balance);
+      const penalty = team.balance > 0 ? Math.max(1, Math.round(team.balance * 0.20)) : 0;
       wrongPool += penalty;
     }
   }
@@ -1400,7 +1400,7 @@ function revealAnswer() {
 
   for (const pid of nonBettingTeams) {
     const team = hostState.teams[pid];
-    const penalty = Math.min(100, team.balance);
+    const penalty = team.balance > 0 ? Math.max(1, Math.round(team.balance * 0.20)) : 0;
     team.balance -= penalty;
     if (team.balance < 0) team.balance = 0;
     results[pid] = { correct: false, delta: -penalty, noBet: true };

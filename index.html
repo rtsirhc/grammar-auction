@@ -466,6 +466,146 @@ input:focus { border-color: var(--aqua); box-shadow: 0 0 0 4px rgba(67,230,208,.
   .game-right { max-height: 230px; }
   .host-controls .btn { flex: 1 1 auto; }
 }
+
+/* =========================
+   GRAMMAR RUSH / ARENA UI
+   A structural arcade redesign layered on the existing game screens.
+   ========================= */
+:root {
+  --arena-bg: #080b16;
+  --arena-panel: #101727;
+  --arena-panel-2: #151f32;
+  --arena-ink: #f5f7ff;
+  --arena-muted: #7f8da6;
+  --arena-line: #2b3a55;
+  --arena-cyan: #3de4db;
+  --arena-orange: #ff9e45;
+  --arena-hot: #ff4f81;
+  --arena-lime: #c2ff5a;
+  --arena-radius: 9px;
+}
+
+body {
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  background: var(--arena-bg);
+  color: var(--arena-ink);
+  background-image:
+    linear-gradient(90deg, rgba(61,228,219,.04) 1px, transparent 1px),
+    linear-gradient(rgba(61,228,219,.04) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% -20%, rgba(61,228,219,.12), transparent 58%);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+body::before { opacity: .7; background-size: 56px 56px; mask-image: linear-gradient(to bottom, black, transparent 92%); }
+
+.card, .leaderboard-panel, .betting-panel, .client-result, .client-waiting, .bet-submitted-msg {
+  border-radius: var(--arena-radius);
+  border: 1px solid var(--arena-line);
+  background: linear-gradient(135deg, rgba(21,31,50,.98), rgba(12,18,32,.98));
+  box-shadow: 0 14px 35px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card::before, .leaderboard-panel::before, .betting-panel::before { pointer-events:none; }
+.btn {
+  position: relative; overflow: hidden; border-radius: 5px; border: 0;
+  padding: 11px 17px; min-height: 40px; box-shadow: 0 4px 0 rgba(0,0,0,.32);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  letter-spacing: .12em; font-size: .72rem;
+  transition: transform .14s ease, filter .14s ease, box-shadow .14s ease;
+}
+.btn::after { content:""; position:absolute; inset:0; background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.2) 50%,transparent 65%); transform:translateX(-120%); transition:transform .45s ease; }
+.btn:hover::after { transform:translateX(120%); }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.12); box-shadow: 0 7px 0 rgba(0,0,0,.3), 0 0 20px rgba(61,228,219,.16); }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+.btn-gold { color: #1b1421; background: linear-gradient(135deg, var(--arena-orange), #ffce68); }
+.btn-blue { color: #071821; background: linear-gradient(135deg, var(--arena-cyan), #65b9ff); }
+.btn-green { color: #10190d; background: linear-gradient(135deg, var(--arena-lime), #5ce6c1); }
+.btn-red { color: #fff; background: linear-gradient(135deg, var(--arena-hot), #bd3d9e); }
+
+/* Start screen: split stage + role dock */
+#roleSelect { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,420px); grid-template-rows:auto 1fr auto; align-items:center; justify-items:stretch; gap:0 7vw; max-width:1180px; margin:auto; padding:clamp(32px,8vh,100px) 36px; text-align:left; }
+#roleSelect h1 { grid-column:1; grid-row:1; max-width:680px; color:var(--arena-ink); font-family:Impact, "Arial Narrow", sans-serif; font-size:clamp(3.2rem,7vw,7.2rem); font-weight:900; letter-spacing:.015em; line-height:.83; text-transform:uppercase; text-shadow:7px 7px 0 #1c3150; }
+#roleSelect h1::after { content:" / CLASSROOM ARENA"; display:block; margin-top:19px; color:var(--arena-cyan); font:900 clamp(.8rem,1.5vw,1.15rem)/1 "Arial Narrow",sans-serif; letter-spacing:.3em; text-shadow:none; }
+#roleSelect .subtitle { grid-column:1; grid-row:2; align-self:start; max-width:540px; margin-top:28px; color:var(--arena-muted); font-size:1rem; line-height:1.5; }
+#roleSelect::after { grid-column:1; grid-row:3; justify-self:start; content:"INSERT COINS  •  PICK YOUR SIDE  •  PLAY"; color:var(--arena-orange); font-size:.64rem; font-weight:900; letter-spacing:.24em; }
+.role-cards { grid-column:2; grid-row:1 / 4; display:grid; grid-template-columns:1fr; gap:13px; width:100%; }
+.role-card { width:100%; min-height:180px; padding:22px; align-items:flex-start; justify-content:flex-end; text-align:left; border-radius:var(--arena-radius); border:1px solid var(--arena-line); background:linear-gradient(145deg,#182943,#0e1626); overflow:hidden; }
+.role-card::before { width:230px; height:230px; right:-95px; top:-105px; background:var(--arena-cyan); opacity:.12; mix-blend-mode:screen; }
+.role-card::after { content:"01"; position:absolute; top:15px; left:18px; color:var(--arena-cyan); font:900 2.5rem/1 Impact,sans-serif; opacity:.9; }
+.role-card:nth-child(2)::after { content:"02"; color:var(--arena-hot); }
+.role-card:hover, .role-card:nth-child(2):hover { transform:translateX(8px); border-color:var(--arena-cyan); box-shadow:12px 12px 0 rgba(61,228,219,.08), 0 0 24px rgba(61,228,219,.16); }
+.role-card:nth-child(2):hover { border-color:var(--arena-hot); box-shadow:12px 12px 0 rgba(255,79,129,.08), 0 0 24px rgba(255,79,129,.16); }
+.role-card .icon { position:absolute; right:22px; top:22px; margin:0; font-size:2.6rem; filter:grayscale(.1) drop-shadow(0 7px 0 rgba(0,0,0,.25)); }
+.role-card h2 { color:var(--arena-ink); margin:0 0 6px; font:900 1.08rem/1 Impact,"Arial Narrow",sans-serif; letter-spacing:.07em; text-transform:uppercase; }
+.role-card p { max-width:240px; color:var(--arena-muted); font-size:.82rem; line-height:1.4; }
+
+/* Teacher console */
+#hostScreen { background:linear-gradient(180deg,#080b16,#0b101c); }
+.host-header { min-height:58px; padding:9px 18px; background:#0e1626; border-bottom:2px solid var(--arena-cyan); box-shadow:0 5px 0 rgba(61,228,219,.08); }
+.host-header h1 { color:var(--arena-ink); font:900 1rem/1 Impact,"Arial Narrow",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+.host-header h1::after { content:" // LIVE"; color:var(--arena-cyan); font-size:.72em; }
+.room-badge { border-radius:4px; border:1px solid var(--arena-orange); background:#241b1c; color:var(--arena-orange); font:900 1.25rem/1 Impact,sans-serif; box-shadow:4px 4px 0 rgba(255,158,69,.16); }
+.setup-panel { grid-template-columns:minmax(0,1fr) minmax(340px,420px); gap:18px; padding:18px; }
+.setup-left { gap:12px; }
+.setup-panel .card { padding:16px; }
+.setup-panel .card h3, .qr-section h3, .leaderboard-panel h3 { color:var(--arena-cyan) !important; font-family:Impact,"Arial Narrow",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+.team-count-btn { border-radius:4px; border-color:#405473; background:#0c1423; }
+.team-count-btn.active, .team-count-btn:hover { color:#071821; background:var(--arena-cyan); border-color:var(--arena-cyan); box-shadow:3px 3px 0 rgba(61,228,219,.2); }
+.team-chip { border-radius:4px; background:#15251f; border-color:#345e4b; }
+.team-chip .dot { background:var(--arena-lime); box-shadow:0 0 8px var(--arena-lime); }
+.qr-section { position:relative; }
+.qr-section::after { content:"SCAN / JOIN"; position:absolute; right:14px; top:15px; color:var(--arena-orange); font:900 .62rem Impact,sans-serif; letter-spacing:.12em; }
+.qr-section canvas, .qr-section img { border:5px solid #f8f3e7; border-radius:3px; box-shadow:8px 8px 0 rgba(255,158,69,.13); }
+.join-link { border-radius:3px; border-color:#2b3a55; }
+
+/* Game stage */
+.game-layout { grid-template-columns:minmax(0,1fr) 300px; gap:14px; padding:14px; }
+.question-display { border-radius:var(--arena-radius); background:#101c2d; border:1px solid var(--arena-cyan); box-shadow:0 0 0 5px rgba(61,228,219,.05), 10px 10px 0 rgba(61,228,219,.08); }
+.q-number { color:var(--arena-orange); font-family:Impact,sans-serif; letter-spacing:.18em; text-transform:uppercase; }
+.q-sentence { font-family:"Arial Narrow","Segoe UI",sans-serif; letter-spacing:.01em; }
+.q-timer { font-family:Impact,sans-serif; color:var(--arena-orange); }
+.bet-card { border-radius:5px; background:#111a2a; border-color:#293a56; }
+.bet-card.submitted { border-color:var(--arena-orange); background:#2c211b; box-shadow:4px 4px 0 rgba(255,158,69,.1); }
+.bet-card.correct-reveal { border-color:var(--arena-lime); background:#172718; }
+.bet-card.incorrect-reveal, .bet-card.no-bet-reveal { border-color:var(--arena-hot); background:#291722; }
+.leaderboard-panel { padding:14px; }
+.lb-row { border-radius:4px; background:#0d1523; border-color:#24344e; }
+.lb-row:first-child { background:#302618; border-color:var(--arena-orange); }
+.lb-balance { color:var(--arena-orange); }
+.host-controls { border-radius:5px; background:#0d1523; border-color:#293a55; }
+
+/* Student phone / tablet: clear thumb-first controls */
+#clientScreen { max-width:540px; padding:14px; }
+.client-join { min-height:92vh; justify-content:center; }
+.client-join h2 { color:var(--arena-ink); font:900 2.2rem/1 Impact,"Arial Narrow",sans-serif; letter-spacing:.04em; text-transform:uppercase; }
+.client-join h2::before { content:"PLAYER 02 / "; color:var(--arena-hot); font-size:.45em; letter-spacing:.15em; vertical-align:middle; }
+.client-join input { border-radius:5px; background:#0c1423; }
+.client-header { position:relative; margin-bottom:10px; padding:14px; border-radius:var(--arena-radius); background:#101c2d; border:1px solid var(--arena-cyan); }
+.client-team-name { font-family:Impact,"Arial Narrow",sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+.client-balance { color:var(--arena-orange); font-family:Impact,sans-serif; }
+.betting-panel, .client-result, .client-waiting, .bet-submitted-msg { padding:16px; }
+.betting-panel h3 { font:900 1.1rem/1 Impact,"Arial Narrow",sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+.choice-buttons { gap:8px; }
+.choice-btn { min-height:74px; border-radius:5px; clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px)); }
+.choice-btn.legal-btn { color:var(--arena-lime); background:#162718; border:2px solid #4b7d4b; }
+.choice-btn.legal-btn.selected { color:#071821; background:var(--arena-lime); border-color:var(--arena-lime); box-shadow:5px 5px 0 rgba(194,255,90,.14); }
+.choice-btn.illegal-btn { color:#ff91b0; background:#281722; border:2px solid #79364d; }
+.choice-btn.illegal-btn.selected { color:#fff; background:var(--arena-hot); border-color:var(--arena-hot); box-shadow:5px 5px 0 rgba(255,79,129,.14); }
+.quick-amounts .btn { min-height:36px; padding:8px 10px; }
+.submit-bet-btn { min-height:52px; font-size:.8rem; }
+
+@media (max-width: 900px) {
+  #roleSelect { grid-template-columns:1fr; grid-template-rows:auto auto auto auto; gap:18px; min-height:100vh; padding:28px 20px; }
+  #roleSelect h1, #roleSelect .subtitle, #roleSelect::after, .role-cards { grid-column:1; }
+  #roleSelect h1 { grid-row:1; font-size:clamp(3rem,14vw,5rem); }
+  #roleSelect .subtitle { grid-row:2; margin-top:0; }
+  .role-cards { grid-row:3; }
+  #roleSelect::after { grid-row:4; }
+}
+@media (max-width: 768px) {
+  .setup-panel { grid-template-columns:1fr; }
+  .game-layout { grid-template-columns:1fr; }
+  .game-right { max-height:230px; }
+  .host-controls { position:sticky; bottom:8px; z-index:2; }
+}
 </style>
 </head>
 <body>
@@ -473,17 +613,17 @@ input:focus { border-color: var(--aqua); box-shadow: 0 0 0 4px rgba(67,230,208,.
 <!-- ROLE SELECT -->
 <div id="roleSelect">
   <h1 class="gold glow-text">⚡ Grammar Rush</h1>
-  <p class="subtitle">A real-time multiplayer classroom game</p>
+  <p class="subtitle">A live classroom battle of grammar and nerve</p>
   <div class="role-cards">
     <div class="role-card card" onclick="initHost()">
       <div class="icon">🖥️</div>
-      <h2>Host / Big Screen</h2>
-      <p>Project this on the classroom display. Controls questions, timer, and scoring.</p>
+      <h2>Teacher Console</h2>
+      <p>Run the room, control the clock, and reveal the board.</p>
     </div>
     <div class="role-card card" onclick="showClientJoin()">
       <div class="icon">📱</div>
-      <h2>Student / Mobile</h2>
-      <p>Join from your phone. Place bets on whether sentences are legal or illegal.</p>
+      <h2>Player Station</h2>
+      <p>Use your phone or tablet. Read, choose, and bet.</p>
     </div>
   </div>
 </div>

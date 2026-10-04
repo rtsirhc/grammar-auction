@@ -780,6 +780,14 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
 .topic-picker-actions .btn { min-height:30px; padding:5px 9px; font-size:.62rem !important; }
 #topicPickerLive { flex:none; }
 #topicPickerLive .topic-checks { max-height:118px; }
+.topic-settings-button { width:100%; flex:none; }
+.topic-modal { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(36,21,59,.55); }
+.topic-modal-panel { width:min(680px, 100%); max-height:min(86vh, 720px); overflow:auto; padding:20px; border:4px solid var(--park-ink); border-radius:8px; background:var(--park-paper); box-shadow:12px 12px 0 var(--park-ink); }
+.topic-modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
+.topic-modal-header h2 { margin:0; color:var(--park-red); font:900 1.6rem/1 Impact,sans-serif; letter-spacing:.06em; text-transform:uppercase; text-shadow:2px 2px 0 var(--park-yellow); }
+.topic-modal-close { width:38px; height:38px; border:3px solid var(--park-ink); border-radius:4px; background:var(--park-pink); color:var(--park-ink); font:900 1.6rem/1 Arial,sans-serif; cursor:pointer; box-shadow:3px 3px 0 var(--park-ink); }
+.topic-modal-help { margin:0 0 14px; color:var(--park-ink); font-size:.82rem; font-weight:700; }
+.topic-modal-done { margin-top:14px; width:100%; }
 @media (max-width: 768px) {
   .topic-checks { max-height:126px; }
   .topic-picker-title { display:block; }
@@ -863,7 +871,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       </div>
       <!-- RIGHT COLUMN: Leaderboard -->
       <div class="game-right">
-        <div class="topic-picker-card" id="topicPickerLive"></div>
+        <button class="btn btn-gold topic-settings-button" type="button" onclick="toggleTopicSettings(true)">🎟️ Question Mix</button>
         <div class="leaderboard-panel">
           <h3 class="gold">🏆 Leaderboard</h3>
           <div class="lb-rows" id="lbRows"></div>
@@ -874,6 +882,15 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
         <button class="btn btn-gold" id="nextQuestionBtn" onclick="nextQuestion()">▶️ Next Question</button>
         <button class="btn btn-blue btn-sm" id="skipTimerBtn" onclick="skipTimer()" disabled>⏩ Skip Timer</button>
         <button class="btn btn-red btn-sm" id="endGameBtn" onclick="triggerFinalChallenge()">🏁 End Game</button>
+      </div>
+    </div>
+
+    <div id="topicSettingsModal" class="topic-modal hidden" role="dialog" aria-modal="true" aria-labelledby="topicSettingsTitle">
+      <div class="topic-modal-panel">
+        <div class="topic-modal-header"><h2 id="topicSettingsTitle">Question Mix</h2><button class="topic-modal-close" type="button" onclick="toggleTopicSettings(false)" aria-label="Close question mix">×</button></div>
+        <p class="topic-modal-help">Changes apply to the next question. The current round keeps its original card.</p>
+        <div id="topicPickerLive"></div>
+        <button class="btn btn-blue topic-modal-done" type="button" onclick="toggleTopicSettings(false)">✓ Apply to next question</button>
       </div>
     </div>
 
@@ -928,11 +945,11 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <p class="dots" style="margin-top:8px;">Waiting</p>
     </div>
     <div id="clientBetting" class="betting-panel hidden">
-      <h3 style="margin-bottom:4px;">Is it LEGAL or ILLEGAL?</h3>
+      <h3 style="margin-bottom:4px;">Is it CORRECT or INCORRECT?</h3>
       <p style="color:#94a3b8;font-size:0.8rem;margin-bottom:8px;">Read the sentence on the big screen!</p>
       <div class="choice-buttons">
-        <button class="choice-btn legal-btn" id="legalBtn" onclick="selectChoice('LEGAL')">✅ LEGAL</button>
-        <button class="choice-btn illegal-btn" id="illegalBtn" onclick="selectChoice('ILLEGAL')">❌ ILLEGAL</button>
+        <button class="choice-btn legal-btn" id="legalBtn" onclick="selectChoice('LEGAL')">✅ CORRECT</button>
+        <button class="choice-btn illegal-btn" id="illegalBtn" onclick="selectChoice('ILLEGAL')">❌ INCORRECT</button>
       </div>
       <div class="amount-section">
         <label>💰 Bet Amount</label>
@@ -1205,6 +1222,8 @@ function filteredQuestionBank() {
   return QUESTIONS.filter(q => topics.includes(q.topic) && levels.includes(q.level));
 }
 
+function answerLabel(status) { return status === 'LEGAL' ? 'CORRECT' : 'INCORRECT'; }
+
 function renderTopicPicker() {
   const topicsMarkup = TOPIC_CATALOG.map(topic => `
     <label class="topic-check"><input type="checkbox" data-topic-filter="${topic.id}" ${hostState.topicFilters.includes(topic.id) ? 'checked' : ''}><span>${topic.label}</span></label>`).join('');
@@ -1217,9 +1236,17 @@ function renderTopicPicker() {
   document.querySelectorAll('[data-topic-filter], [data-level-filter]').forEach(input => input.addEventListener('change', handleQuestionFilterChange));
 }
 
-function handleQuestionFilterChange() {
-  hostState.topicFilters = [...document.querySelectorAll('[data-topic-filter]:checked')].map(input => input.dataset.topicFilter);
-  hostState.levelFilters = [...document.querySelectorAll('[data-level-filter]:checked')].map(input => input.dataset.levelFilter);
+function handleQuestionFilterChange(event) {
+  // Setup and modal contain mirrored controls. The changed control is the source of truth.
+  const source = event && event.target;
+  if (source) {
+    const attr = source.dataset.topicFilter ? 'data-topic-filter' : 'data-level-filter';
+    const value = source.dataset.topicFilter || source.dataset.levelFilter;
+    document.querySelectorAll(`[${attr}="${value}"]`).forEach(input => { input.checked = source.checked; });
+  }
+  const setupRoot = document.getElementById('topicPickerSetup') || document;
+  hostState.topicFilters = [...setupRoot.querySelectorAll('[data-topic-filter]:checked')].map(input => input.dataset.topicFilter);
+  hostState.levelFilters = [...setupRoot.querySelectorAll('[data-level-filter]:checked')].map(input => input.dataset.levelFilter);
   if (!hostState.topicFilters.length) hostState.topicFilters = TOPIC_CATALOG.map(t => t.id);
   if (!hostState.levelFilters.length) hostState.levelFilters = [...LEVELS];
   const used = hostState.shuffledQuestions.slice(0, hostState.currentQ);
@@ -1233,6 +1260,13 @@ function selectAllQuestionFilters() {
   hostState.topicFilters = TOPIC_CATALOG.map(t => t.id);
   hostState.levelFilters = [...LEVELS];
   renderTopicPicker();
+}
+
+function toggleTopicSettings(open) {
+  const modal = document.getElementById('topicSettingsModal');
+  if (!modal) return;
+  modal.classList.toggle('hidden', !open);
+  if (open) modal.querySelector('.topic-modal-close').focus();
 }
 
 // ===== AUTO-DETECT ROLE =====
@@ -1465,7 +1499,7 @@ function revealAnswer() {
   const ar = document.getElementById('answerReveal');
   ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
   ar.innerHTML = `
-    <div class="verdict ${q.status === 'LEGAL' ? 'green' : 'red'}">${q.status === 'LEGAL' ? '✅ LEGAL' : '❌ ILLEGAL'}</div>
+    <div class="verdict ${q.status === 'LEGAL' ? 'green' : 'red'}">${q.status === 'LEGAL' ? '✅ CORRECT' : '❌ INCORRECT'}</div>
     <div class="correction">${escHtml(q.correction)}</div>
   `;
 
@@ -1576,7 +1610,7 @@ function updateBetsDisplayRevealed(results) {
         ${bet ? `
           <div class="bet-info">
             <span class="bet-amount">\$${bet.amount.toLocaleString()}</span>
-            <span class="reveal-choice ${bet.choice.toLowerCase()}">${bet.choice}</span>
+            <span class="reveal-choice ${bet.choice.toLowerCase()}">${answerLabel(bet.choice)}</span>
           </div>
           <div class="delta ${res.delta > 0 ? 'positive' : res.delta < 0 ? 'negative' : ''}">${
             res.delta > 0 ? '+$' + res.delta.toLocaleString() :
@@ -1796,17 +1830,17 @@ function showClientResult(data) {
   if (data.correct === null || (data.correct === false && data.delta < 0 && !clientState.selectedChoice)) {
     el.innerHTML = `<div class="verdict red">⏱️ NO BET PENALTY</div>
       <div class="change red">-\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${data.answer}</strong></p>
+      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
       <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
   } else if (data.correct) {
     el.innerHTML = `<div class="verdict green">✅ CORRECT!</div>
       <div class="change green">+\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${data.answer}</strong></p>
+      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
       <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
   } else {
     el.innerHTML = `<div class="verdict red">❌ WRONG!</div>
       <div class="change red">-\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${data.answer}</strong></p>
+      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
       <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
   }
 }

@@ -842,6 +842,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
         </div>
       </div>
       <div class="card topic-picker-card" id="topicPickerSetup"></div>
+      <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
       <button class="btn btn-gold btn-lg" id="startGameBtn" onclick="startGame()" disabled>🎮 Start Game</button>
     </div>
     <div class="card qr-section">
@@ -881,6 +882,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <div class="host-controls" id="hostControls">
         <button class="btn btn-gold" id="nextQuestionBtn" onclick="nextQuestion()">▶️ Next Question</button>
         <button class="btn btn-blue btn-sm" id="skipTimerBtn" onclick="skipTimer()" disabled>⏩ Skip Timer</button>
+        <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
         <button class="btn btn-red btn-sm" id="endGameBtn" onclick="triggerFinalChallenge()">🏁 End Game</button>
       </div>
     </div>
@@ -905,6 +907,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
         <button class="btn btn-gold" onclick="checkSpelling()">✓ Check</button>
       </div>
       <div class="fc-feedback" id="fcFeedback"></div>
+      <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
     </div>
 
     <!-- Winner (replaces everything) -->
@@ -913,6 +916,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <h1 class="gold glow-text">🎉 WINNER! 🎉</h1>
       <div class="winner-name" id="winnerName"></div>
       <div class="winner-title" id="winnerTitle"></div>
+      <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
       <div id="finalStandings" style="margin-top:20px;max-width:400px;margin-left:auto;margin-right:auto;"></div>
     </div>
   </div>
@@ -1208,13 +1212,114 @@ const hostState = {
   topicFilters: TOPIC_CATALOG.map(t => t.id), levelFilters: [...LEVELS],
   timerInterval: null, timeLeft: 30, bettingOpen: false,
   gameStarted: false, roundRevealed: false,
-  finalChallengeActive: false, fcTeamOrder: [], fcCurrentIndex: 0
+  finalChallengeActive: false, fcTeamOrder: [], fcCurrentIndex: 0,
+  roundResults: {}, bettingDeadline: null, winner: null
 };
 
 const clientState = {
   conn: null, teamName: '', balance: 1000,
-  selectedChoice: null, betSubmitted: false, peerId: null
+  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, kicked: false
 };
+
+// Persist plain game data only; PeerJS connections are recreated after a reload.
+const STORAGE_PREFIX = 'grammar-auction:v1:';
+function readSaved(key) {
+  try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)); } catch (_) { return null; }
+}
+function writeSaved(key, value) {
+  try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); } catch (_) {}
+}
+function removeSaved(key) {
+  try { localStorage.removeItem(STORAGE_PREFIX + key); } catch (_) {}
+}
+function saveHostSession() {
+  if (role !== 'host') return;
+  const {timerInterval, teams, ...state} = hostState;
+  writeSaved('host:' + roomCode, {roomCode, state, teams: Object.fromEntries(
+    Object.entries(teams).map(([id, team]) => [id, {name: team.name, balance: team.balance, lastResult: team.lastResult || null}])
+  )});
+}
+function saveClientSession() {
+  if (!clientState.teamId || clientState.kicked) return;
+  writeSaved('client:' + clientState.room, {
+    teamId: clientState.teamId, teamName: clientState.teamName, balance: clientState.balance
+  });
+  writeSaved('active', {role: 'client', room: clientState.room});
+}
+function sendToTeam(team, message) {
+  if (message.type === 'result') team.lastResult = message;
+  try { if (team.conn && team.conn.open) team.conn.send(message); } catch (_) {}
+}
+function syncTeam(team, id) {
+  sendToTeam(team, {type: 'joined', balance: team.balance});
+  if (hostState.winner) { sendToTeam(team, {type: 'gameOver', winner: hostState.winner.name}); return; }
+  if (hostState.finalChallengeActive) { sendToTeam(team, {type: 'finalChallenge'}); return; }
+  if (!hostState.gameStarted) return;
+  sendToTeam(team, {type: 'gameStarted'});
+  const bet = hostState.bets[id];
+  if (hostState.bettingOpen) {
+    sendToTeam(team, {type: 'openBetting', questionId: hostState.currentQ});
+    if (bet) sendToTeam(team, {type: 'betConfirmed', choice: bet.choice});
+  } else if (hostState.roundRevealed && team.lastResult) {
+    if (bet) sendToTeam(team, {type: 'betConfirmed', choice: bet.choice});
+    sendToTeam(team, team.lastResult);
+  }
+}
+function runRoundTimer() {
+  clearInterval(hostState.timerInterval);
+  const tick = () => {
+    hostState.timeLeft = Math.max(0, Math.ceil((hostState.bettingDeadline - Date.now()) / 1000));
+    const timer = document.getElementById('qTimer');
+    timer.textContent = hostState.timeLeft;
+    timer.classList.toggle('urgent', hostState.timeLeft <= 5);
+    if (hostState.timeLeft <= 0) {
+      clearInterval(hostState.timerInterval);
+      timer.textContent = "⏱️ TIME'S UP!";
+      revealAnswer();
+    }
+  };
+  hostState.timerInterval = setInterval(tick, 1000);
+  tick();
+}
+function restoreHostView() {
+  updateConnectedTeams(); updateStartBtn();
+  if (!hostState.gameStarted) return;
+  document.getElementById('hostSetup').classList.add('hidden');
+  document.getElementById('hostGame').classList.remove('hidden');
+  updateLeaderboard(); updateBetsDisplay();
+  if (hostState.winner) { showWinner(hostState.winner); return; }
+  if (hostState.finalChallengeActive) { triggerFinalChallenge(); return; }
+  const q = hostState.shuffledQuestions[hostState.currentQ - 1];
+  if (!q) return;
+  document.getElementById('questionDisplay').classList.remove('hidden');
+  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ} / ${hostState.shuffledQuestions.length}`;
+  document.getElementById('qSentence').textContent = `"${q.sentence}"`;
+  document.getElementById('nextQuestionBtn').disabled = hostState.bettingOpen;
+  document.getElementById('skipTimerBtn').disabled = !hostState.bettingOpen;
+  if (hostState.bettingOpen) runRoundTimer();
+  else if (hostState.roundRevealed) {
+    renderAnswer(q);
+    updateBetsDisplayRevealed(hostState.roundResults);
+    if (hostState.currentQ >= hostState.shuffledQuestions.length) {
+      document.getElementById('nextQuestionBtn').textContent = '🏁 Final Challenge';
+      document.getElementById('nextQuestionBtn').onclick = triggerFinalChallenge;
+    }
+  }
+}
+function newClass() {
+  const suggested = String(Math.floor(1000 + Math.random() * 9000));
+  const input = prompt('Room code for the new class (4 digits). A new code starts with fresh teams and $1,000 each.', suggested);
+  if (input === null) return;
+  const code = input.trim();
+  if (!/^\d{4}$/.test(code)) { alert('Enter a 4-digit room code.'); return; }
+  if (readSaved('host:' + code)) {
+    if (!confirm('This room already has a saved class. Reset its teams and scores?')) return;
+    removeSaved('host:' + code);
+  }
+  writeSaved('active', {role: 'host', room: code});
+  if (peer) peer.destroy();
+  window.location.href = window.location.pathname + '?role=host&room=' + code;
+}
 
 function filteredQuestionBank() {
   const topics = hostState.topicFilters.length ? hostState.topicFilters : TOPIC_CATALOG.map(t => t.id);
@@ -1254,12 +1359,14 @@ function handleQuestionFilterChange(event) {
   const available = shuffleArray(filteredQuestionBank().filter(q => !usedIds.has(q.id)));
   hostState.shuffledQuestions = [...used, ...available];
   document.querySelectorAll('#topicPoolCount').forEach(el => el.textContent = `${filteredQuestionBank().length} cards ready`);
+  saveHostSession();
 }
 
 function selectAllQuestionFilters() {
   hostState.topicFilters = TOPIC_CATALOG.map(t => t.id);
   hostState.levelFilters = [...LEVELS];
   renderTopicPicker();
+  handleQuestionFilterChange();
 }
 
 function toggleTopicSettings(open) {
@@ -1269,21 +1376,39 @@ function toggleTopicSettings(open) {
   if (open) modal.querySelector('.topic-modal-close').focus();
 }
 
-// ===== AUTO-DETECT ROLE =====
+// ===== AUTO-DETECT ROLE / RESUME =====
 (function() {
   const params = new URLSearchParams(window.location.search);
-  const r = params.get('role'), room = params.get('room');
+  const active = readSaved('active') || {};
+  const r = params.get('role') || active.role;
+  const room = params.get('room') || active.room;
   if (r === 'host') initHost();
   else if (r === 'client') {
     showClientJoin();
-    if (room) document.getElementById('clientRoomInput').value = room;
+    if (room) {
+      document.getElementById('clientRoomInput').value = room;
+      const saved = readSaved('client:' + room);
+      if (saved) {
+        document.getElementById('clientTeamInput').value = saved.teamName;
+        connectToHost();
+      }
+    }
   }
 })();
 
 // ===== HOST =====
 function initHost() {
   role = 'host';
-  roomCode = String(Math.floor(1000 + Math.random() * 9000));
+  const params = new URLSearchParams(window.location.search);
+  const active = readSaved('active') || {};
+  const requestedRoom = params.get('room') || (active.role === 'host' ? active.room : null);
+  const saved = requestedRoom ? readSaved('host:' + requestedRoom) : readSaved('host');
+  if (saved && saved.state && saved.teams) {
+    Object.assign(hostState, saved.state);
+    hostState.teams = saved.teams;
+  }
+  roomCode = saved ? saved.roomCode : (/^\d{4}$/.test(requestedRoom || '') ? requestedRoom : String(Math.floor(1000 + Math.random() * 9000)));
+  writeSaved('active', {role: 'host', room: roomCode});
   document.getElementById('roleSelect').classList.add('hidden');
   document.getElementById('hostScreen').classList.remove('hidden');
   document.getElementById('hostRoomCode').textContent = roomCode;
@@ -1300,58 +1425,76 @@ function initHost() {
   const btnContainer = document.getElementById('teamCountBtns');
   for (let i = 2; i <= 8; i++) {
     const b = document.createElement('button');
-    b.className = 'team-count-btn' + (i === 4 ? ' active' : '');
+    b.className = 'team-count-btn' + (i === hostState.teamCount ? ' active' : '');
     b.textContent = i;
     b.onclick = () => {
       document.querySelectorAll('.team-count-btn').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
       hostState.teamCount = i;
+      saveHostSession();
       updateStartBtn();
     };
     btnContainer.appendChild(b);
   }
 
-  const peerId = 'ESL-AUCTION-' + roomCode;
-  peer = new Peer(peerId, { debug: 0 });
-  peer.on('open', () => console.log('Host peer open:', peerId));
+  connectHostPeer(Boolean(saved));
+  restoreHostView();
+  saveHostSession();
+}
+function connectHostPeer(resuming) {
+  peer = new Peer('ESL-AUCTION-' + roomCode, {debug: 0});
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') {
-      roomCode = String(Math.floor(1000 + Math.random() * 9000));
-      document.getElementById('hostRoomCode').textContent = roomCode;
-      joinUrl = `${window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
-      document.getElementById('joinLinkDisplay').textContent = joinUrl;
       peer.destroy();
-      peer = new Peer('ESL-AUCTION-' + roomCode, { debug: 0 });
-      setupHostListeners();
+      // A refreshing host may need a moment for its old signaling ID to be released.
+      if (resuming) setTimeout(() => connectHostPeer(true), 2000);
+      else { removeSaved('host:' + roomCode); alert('That room code is already in use. Choose another code.'); newClass(); }
     }
   });
+  peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
   setupHostListeners();
 }
-
 function setupHostListeners() {
   peer.on('connection', (conn) => {
-    conn.on('open', () => { conn.on('data', (data) => handleClientMessage(conn, data)); });
+    conn.on('data', (data) => handleClientMessage(conn, data));
     conn.on('close', () => {
-      if (hostState.teams[conn.peer]) { delete hostState.teams[conn.peer]; updateConnectedTeams(); updateStartBtn(); }
+      const team = hostState.teams[conn.teamId];
+      if (team && team.conn === conn) {
+        team.conn = null;
+        updateConnectedTeams();
+        saveHostSession();
+      }
     });
   });
 }
 
 function handleClientMessage(conn, data) {
   switch (data.type) {
-    case 'join':
-      hostState.teams[conn.peer] = { name: data.teamName, balance: 1000, conn };
-      conn.send({ type: 'joined', balance: 1000 });
+    case 'join': {
+      if (typeof data.teamId !== 'string' || !/^[a-zA-Z0-9-]{16,80}$/.test(data.teamId)) return;
+      conn.teamId = data.teamId;
+      let team = hostState.teams[conn.teamId];
+      if (!team) {
+        if (hostState.gameStarted) { conn.send({type: 'joinRejected'}); return; }
+        team = hostState.teams[conn.teamId] = {name: String(data.teamName || 'Team').slice(0, 80), balance: 1000};
+      }
+      const oldConn = team.conn;
+      team.conn = conn;
+      if (oldConn && oldConn !== conn) oldConn.close();
+      saveHostSession();
+      syncTeam(team, conn.teamId);
       updateConnectedTeams(); updateStartBtn();
-      if (hostState.gameStarted) { conn.send({ type: 'gameStarted' }); updateLeaderboard(); }
+      if (hostState.gameStarted) updateLeaderboard();
       break;
+    }
     case 'bet':
-      if (hostState.bettingOpen && !hostState.bets[conn.peer]) {
-        const team = hostState.teams[conn.peer];
-        if (team) {
+      if (hostState.bettingOpen && ['LEGAL', 'ILLEGAL'].includes(data.choice) && Number.isFinite(data.amount) && !hostState.bets[conn.teamId]) {
+        const team = hostState.teams[conn.teamId];
+        if (team && team.conn === conn) {
           const betAmount = Math.min(Math.max(100, data.amount), team.balance);
-          hostState.bets[conn.peer] = { choice: data.choice, amount: betAmount };
-          conn.send({ type: 'betConfirmed' });
+          hostState.bets[conn.teamId] = { choice: data.choice, amount: betAmount };
+          saveHostSession();
+          conn.send({ type: 'betConfirmed', choice: data.choice });
           updateBetsDisplay();
         }
       }
@@ -1368,7 +1511,7 @@ function updateConnectedTeams() {
     return;
   }
   container.innerHTML = teamEntries.map(([pid, t]) =>
-    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}</div><button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button></div>`
+    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}${t.conn && t.conn.open ? '' : ' · reconnecting'}</div><button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button></div>`
   ).join('');
 }
 
@@ -1381,6 +1524,7 @@ function kickTeam(peerId) {
       setTimeout(() => { try { t.conn.close(); } catch(e){} }, 500);
     }
     delete hostState.teams[peerId];
+    saveHostSession();
     if (hostState.bets) delete hostState.bets[peerId];
     
     // Remove from fcTeamOrder if it exists
@@ -1426,6 +1570,7 @@ function startGame() {
   broadcastToAll({ type: 'gameStarted' });
   updateLeaderboard();
   updateBetsDisplay();
+  saveHostSession();
 }
 
 function nextQuestion() {
@@ -1443,6 +1588,8 @@ function nextQuestion() {
   hostState.bettingOpen = true;
   hostState.roundRevealed = false;
   hostState.timeLeft = 30;
+  hostState.bettingDeadline = Date.now() + 30000;
+  hostState.roundResults = {};
 
   playStartSound();
 
@@ -1461,20 +1608,8 @@ function nextQuestion() {
   updateBetsDisplay();
   broadcastToAll({ type: 'openBetting', questionId: hostState.currentQ });
 
-  clearInterval(hostState.timerInterval);
-  hostState.timerInterval = setInterval(() => {
-    hostState.timeLeft--;
-    const timerEl = document.getElementById('qTimer');
-    timerEl.textContent = hostState.timeLeft;
-    if (hostState.timeLeft <= 5) timerEl.classList.add('urgent');
-    if (hostState.timeLeft <= 0) {
-      clearInterval(hostState.timerInterval);
-      timerEl.textContent = "⏱️ TIME'S UP!";
-      playBuzzerSound();
-      document.getElementById('skipTimerBtn').disabled = true;
-      setTimeout(() => revealAnswer(), 800);
-    }
-  }, 1000);
+  saveHostSession();
+  runRoundTimer();
 }
 
 function skipTimer() {
@@ -1496,12 +1631,7 @@ function revealAnswer() {
 
   const q = hostState.shuffledQuestions[hostState.currentQ - 1];
 
-  const ar = document.getElementById('answerReveal');
-  ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
-  ar.innerHTML = `
-    <div class="verdict ${q.status === 'LEGAL' ? 'green' : 'red'}">${q.status === 'LEGAL' ? '✅ CORRECT' : '❌ INCORRECT'}</div>
-    <div class="correction">${escHtml(q.correction)}</div>
-  `;
+  renderAnswer(q);
 
   // Scoring Logic:
   // 1. Correct teams earn their bet amount.
@@ -1544,7 +1674,7 @@ function revealAnswer() {
     const gain = bet.amount + bonusShare;
     team.balance += gain;
     results[pid] = { correct: true, delta: +gain };
-    team.conn.send({ type: 'result', correct: true, delta: +gain, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: true, delta: +gain, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
 
   for (const pid of incorrectTeams) {
@@ -1553,7 +1683,7 @@ function revealAnswer() {
     team.balance -= bet.amount;
     if (team.balance < 0) team.balance = 0;
     results[pid] = { correct: false, delta: -bet.amount };
-    team.conn.send({ type: 'result', correct: false, delta: -bet.amount, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: false, delta: -bet.amount, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
 
   for (const pid of nonBettingTeams) {
@@ -1562,9 +1692,11 @@ function revealAnswer() {
     team.balance -= penalty;
     if (team.balance < 0) team.balance = 0;
     results[pid] = { correct: false, delta: -penalty, noBet: true };
-    team.conn.send({ type: 'result', correct: false, delta: -penalty, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: false, delta: -penalty, newBalance: team.balance, answer: q.status, correction: q.correction });
   }
 
+  hostState.roundResults = results;
+  saveHostSession();
   updateBetsDisplayRevealed(results);
   updateLeaderboard();
   document.getElementById('nextQuestionBtn').disabled = false;
@@ -1573,6 +1705,16 @@ function revealAnswer() {
     document.getElementById('nextQuestionBtn').textContent = '🏁 Final Challenge';
     document.getElementById('nextQuestionBtn').onclick = triggerFinalChallenge;
   }
+}
+
+function renderAnswer(q) {
+  const ar = document.getElementById('answerReveal');
+  ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
+  ar.innerHTML = `
+    <div class="verdict ${q.status === 'LEGAL' ? 'green' : 'red'}">${q.status === 'LEGAL' ? '✅ CORRECT' : '❌ INCORRECT'}</div>
+    <div class="correction">${escHtml(q.correction)}</div>
+  `;
+
 }
 
 function updateBetsDisplay() {
@@ -1646,6 +1788,7 @@ function triggerFinalChallenge() {
   document.getElementById('finalChallenge').classList.remove('hidden');
   broadcastToAll({ type: 'finalChallenge' });
   showFcTeam();
+  saveHostSession();
 }
 
 function showFcTeam() {
@@ -1674,17 +1817,20 @@ function checkSpelling() {
       if (op !== pid) ot.balance += 1000;
     }
     for (const [p, t] of Object.entries(hostState.teams)) {
-      t.conn.send({ type: 'balanceUpdate', newBalance: t.balance });
+      sendToTeam(t, { type: 'balanceUpdate', newBalance: t.balance });
     }
     document.getElementById('fcFeedback').innerHTML = `
       <span class="red">❌ INCORRECT!</span><br>
       <span style="font-size:0.85rem;color:#94a3b8;">-\$1,000 to ${escHtml(team.name)}, +\$1,000 to everyone else!</span><br>
       <span style="font-size:0.75rem;color:#64748b;">Expected: "${correct}"</span>`;
+    saveHostSession();
     setTimeout(showFcTeam, 2500);
   }
 }
 
 function showWinner(team) {
+  hostState.winner = team;
+  saveHostSession();
   playCorrectSound();
   document.getElementById('finalChallenge').classList.add('hidden');
   document.getElementById('winnerScreen').classList.remove('hidden');
@@ -1721,7 +1867,7 @@ function spawnConfetti() {
 }
 
 function broadcastToAll(msg) {
-  for (const t of Object.values(hostState.teams)) { try { t.conn.send(msg); } catch(e) {} }
+  for (const t of Object.values(hostState.teams)) sendToTeam(t, msg);
 }
 
 // ===== CLIENT =====
@@ -1738,24 +1884,63 @@ function connectToHost() {
   if (!room || room.length !== 4) { errEl.textContent = 'Enter a 4-digit room code.'; return; }
   if (!name) { errEl.textContent = 'Enter your team name.'; return; }
   errEl.textContent = 'Connecting...';
-  clientState.teamName = name;
-  peer = new Peer(undefined, { debug: 0 });
-  peer.on('open', (id) => {
-    clientState.peerId = id;
-    const conn = peer.connect('ESL-AUCTION-' + room, { reliable: true });
-    clientState.conn = conn;
-    conn.on('open', () => { conn.send({ type: 'join', teamName: name }); errEl.textContent = ''; });
-    conn.on('data', (data) => handleHostMessage(data));
-    conn.on('close', () => { document.getElementById('clientStatusText').textContent = '⚠️ Disconnected'; });
-    conn.on('error', () => { errEl.textContent = 'Connection failed. Check room code.'; });
-    setTimeout(() => { if (!conn.open) errEl.textContent = 'Could not connect. Check room code.'; }, 8000);
+  const saved = readSaved('client:' + room);
+  clientState.room = room;
+  clientState.teamId = saved ? saved.teamId : crypto.randomUUID();
+  clientState.teamName = saved ? saved.teamName : name;
+  clientState.balance = saved ? saved.balance : 1000;
+  clientState.kicked = false;
+  saveClientSession();
+  clearTimeout(clientState.reconnectTimer);
+  if (peer) peer.destroy();
+  peer = new Peer(undefined, {debug: 0});
+  peer.on('open', (id) => { clientState.peerId = id; reconnectClient(); });
+  peer.on('disconnected', () => { if (!clientState.kicked && !peer.destroyed) peer.reconnect(); });
+  peer.on('error', () => {
+    errEl.textContent = 'Reconnecting to your class…';
+    scheduleReconnect();
   });
-  peer.on('error', () => { errEl.textContent = 'Connection error. Try again.'; });
+}
+function scheduleReconnect() {
+  clearTimeout(clientState.reconnectTimer);
+  if (!clientState.kicked) clientState.reconnectTimer = setTimeout(reconnectClient, 2000);
+}
+function reconnectClient() {
+  if (clientState.kicked || !peer || peer.destroyed) return;
+  if (clientState.conn && clientState.conn.open) return;
+  const conn = peer.connect('ESL-AUCTION-' + clientState.room, {reliable: true});
+  clientState.conn = conn;
+  conn.on('open', () => {
+    clearTimeout(clientState.reconnectTimer);
+    conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
+    document.getElementById('clientError').textContent = '';
+  });
+  conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
+  conn.on('close', () => {
+    if (clientState.conn !== conn) return;
+    document.getElementById('clientStatusText').textContent = 'Reconnecting to your class…';
+    scheduleReconnect();
+  });
+  conn.on('error', scheduleReconnect);
+  clearTimeout(clientState.reconnectTimer);
+  clientState.reconnectTimer = setTimeout(() => {
+    if (!conn.open) { conn.close(); scheduleReconnect(); }
+  }, 8000);
 }
 
 function handleHostMessage(data) {
   switch (data.type) {
+    case 'joinRejected':
+      clientState.kicked = true;
+      clearTimeout(clientState.reconnectTimer);
+      removeSaved('client:' + clientState.room); removeSaved('active');
+      document.getElementById('clientError').textContent = 'This team is no longer in the class. Ask your teacher to start a new class.';
+      if (clientState.conn) clientState.conn.close();
+      break;
     case 'KICK':
+      clientState.kicked = true;
+      clearTimeout(clientState.reconnectTimer);
+      removeSaved('client:' + clientState.room); removeSaved('active');
       document.getElementById('clientScreen').innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;text-align:center;padding:20px;"><h2>You have been removed from the game by the host.</h2></div>';
       if (clientState.conn) clientState.conn.close();
       break;
@@ -1780,7 +1965,7 @@ function handleHostMessage(data) {
         showClientWaiting();
       } break;
     case 'betConfirmed':
-      clientState.betSubmitted = true; showClientBetSubmitted(); break;
+      clientState.betSubmitted = true; clientState.selectedChoice = data.choice || clientState.selectedChoice; showClientBetSubmitted(); break;
     case 'result':
       clientState.balance = data.newBalance;
       document.getElementById('clientBalanceDisplay').textContent = clientState.balance.toLocaleString();
@@ -1808,6 +1993,7 @@ function handleHostMessage(data) {
         <p style="margin-top:12px;font-size:1.8rem;font-weight:700;color:#22c55e;">\$${clientState.balance.toLocaleString()}</p>`;
       break;
   }
+  saveClientSession();
 }
 
 function showClientPanel(id) {

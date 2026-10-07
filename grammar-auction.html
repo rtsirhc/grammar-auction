@@ -1292,18 +1292,16 @@ function restoreHostView() {
   const q = hostState.shuffledQuestions[hostState.currentQ - 1];
   if (!q) return;
   document.getElementById('questionDisplay').classList.remove('hidden');
-  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ} / ${hostState.shuffledQuestions.length}`;
+  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
+  document.getElementById('nextQuestionBtn').textContent = '▶️ Next Question';
+  document.getElementById('nextQuestionBtn').onclick = nextQuestion;
   document.getElementById('nextQuestionBtn').disabled = hostState.bettingOpen;
   document.getElementById('skipTimerBtn').disabled = !hostState.bettingOpen;
   if (hostState.bettingOpen) runRoundTimer();
   else if (hostState.roundRevealed) {
     renderAnswer(q);
     updateBetsDisplayRevealed(hostState.roundResults);
-    if (hostState.currentQ >= hostState.shuffledQuestions.length) {
-      document.getElementById('nextQuestionBtn').textContent = '🏁 Final Challenge';
-      document.getElementById('nextQuestionBtn').onclick = triggerFinalChallenge;
-    }
   }
 }
 function newClass() {
@@ -1334,7 +1332,7 @@ function renderTopicPicker() {
     <label class="topic-check"><input type="checkbox" data-topic-filter="${topic.id}" ${hostState.topicFilters.includes(topic.id) ? 'checked' : ''}><span>${topic.label}</span></label>`).join('');
   const levelsMarkup = LEVELS.map(level => `
     <label class="level-check"><input type="checkbox" data-level-filter="${level}" ${hostState.levelFilters.includes(level) ? 'checked' : ''}><b>${level}</b></label>`).join('');
-  const markup = `<div class="topic-picker-title"><span>🎟️ Question mix</span><small>Choose what enters the next round</small></div>
+  const markup = `<div class="topic-picker-title"><span>🎟️ Question mix</span><small>Choose what enters the next round · Cards repeat when the mix runs out</small></div>
     <div class="level-checks">${levelsMarkup}</div><div class="topic-checks">${topicsMarkup}</div>
     <div class="topic-picker-actions"><button class="btn btn-blue btn-sm" type="button" onclick="selectAllQuestionFilters()">All themes</button><span id="topicPoolCount">${filteredQuestionBank().length} cards ready</span></div>`;
   ['topicPickerSetup', 'topicPickerLive'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = markup; });
@@ -1574,12 +1572,18 @@ function startGame() {
 }
 
 function nextQuestion() {
-  if (!hostState.shuffledQuestions || hostState.shuffledQuestions.length === 0) {
-    hostState.shuffledQuestions = shuffleArray(filteredQuestionBank());
-  }
-
+  if (hostState.bettingOpen || hostState.finalChallengeActive || hostState.winner) return;
   if (hostState.currentQ >= hostState.shuffledQuestions.length) {
-    triggerFinalChallenge(); return;
+    const pool = shuffleArray(filteredQuestionBank());
+    if (!pool.length) {
+      alert('No questions match these topics and levels. Open Question Mix and choose another combination.');
+      return;
+    }
+    const previous = hostState.shuffledQuestions[hostState.currentQ - 1];
+    if (pool.length > 1 && previous && pool[0].id === previous.id) {
+      [pool[0], pool[1]] = [pool[1], pool[0]];
+    }
+    hostState.shuffledQuestions.push(...pool);
   }
 
   const q = hostState.shuffledQuestions[hostState.currentQ];
@@ -1594,7 +1598,7 @@ function nextQuestion() {
   playStartSound();
 
   document.getElementById('questionDisplay').classList.remove('hidden');
-  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ} / ${hostState.shuffledQuestions.length}`;
+  document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
   document.getElementById('qTimer').textContent = '30';
   document.getElementById('qTimer').classList.remove('urgent');
@@ -1701,10 +1705,6 @@ function revealAnswer() {
   updateLeaderboard();
   document.getElementById('nextQuestionBtn').disabled = false;
 
-  if (hostState.currentQ >= hostState.shuffledQuestions.length) {
-    document.getElementById('nextQuestionBtn').textContent = '🏁 Final Challenge';
-    document.getElementById('nextQuestionBtn').onclick = triggerFinalChallenge;
-  }
 }
 
 function renderAnswer(q) {

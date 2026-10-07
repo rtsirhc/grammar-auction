@@ -1218,7 +1218,7 @@ const hostState = {
 
 const clientState = {
   conn: null, teamName: '', balance: 1000,
-  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, kicked: false
+  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, joinTimeout: null, kicked: false, joining: false
 };
 
 // Persist plain game data only; PeerJS connections are recreated after a reload.
@@ -1877,30 +1877,43 @@ function showClientJoin() {
   document.getElementById('clientScreen').classList.remove('hidden');
 }
 
+function setJoinUi(message, busy) {
+  const button = document.querySelector('#clientJoin button');
+  const error = document.getElementById('clientError');
+  if (error && message !== undefined) error.textContent = message;
+  if (button) {
+    button.disabled = Boolean(busy);
+    button.textContent = busy ? '⏳ Connecting…' : '🔗 Join Game';
+  }
+}
 function connectToHost() {
   const room = document.getElementById('clientRoomInput').value.trim();
   const name = document.getElementById('clientTeamInput').value.trim();
-  const errEl = document.getElementById('clientError');
-  if (!room || room.length !== 4) { errEl.textContent = 'Enter a 4-digit room code.'; return; }
-  if (!name) { errEl.textContent = 'Enter your team name.'; return; }
-  errEl.textContent = 'Connecting...';
+  if (!/^\d{4}$/.test(room)) { setJoinUi('Enter a 4-digit room code.', false); return; }
+  if (!name) { setJoinUi('Enter your team name.', false); return; }
+  setJoinUi('Connecting to the teacher…', true);
   const saved = readSaved('client:' + room);
   clientState.room = room;
   clientState.teamId = saved ? saved.teamId : crypto.randomUUID();
   clientState.teamName = saved ? saved.teamName : name;
   clientState.balance = saved ? saved.balance : 1000;
   clientState.kicked = false;
+  clientState.joining = true;
   saveClientSession();
-  clearTimeout(clientState.reconnectTimer);
+  clearTimeout(clientState.reconnectTimer); clearTimeout(clientState.joinTimeout);
   if (peer) peer.destroy();
   peer = new Peer(undefined, {debug: 0});
   peer.on('open', (id) => { clientState.peerId = id; reconnectClient(); });
   peer.on('disconnected', () => { if (!clientState.kicked && !peer.destroyed) peer.reconnect(); });
   peer.on('error', () => {
-    errEl.textContent = 'Reconnecting to your class…';
+    if (clientState.joining) setJoinUi('Reconnecting to the teacher…', true);
     scheduleReconnect();
   });
+  clientState.joinTimeout = setTimeout(() => {
+    if (clientState.joining) setJoinUi('Could not connect yet. Check the code and try again.', false);
+  }, 9000);
 }
+
 function scheduleReconnect() {
   clearTimeout(clientState.reconnectTimer);
   if (!clientState.kicked) clientState.reconnectTimer = setTimeout(reconnectClient, 2000);
@@ -1913,7 +1926,9 @@ function reconnectClient() {
   conn.on('open', () => {
     clearTimeout(clientState.reconnectTimer);
     conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
-    document.getElementById('clientError').textContent = '';
+    clientState.joining = false;
+    clearTimeout(clientState.joinTimeout);
+    setJoinUi('', false);
   });
   conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
   conn.on('close', () => {
@@ -1945,6 +1960,8 @@ function handleHostMessage(data) {
       if (clientState.conn) clientState.conn.close();
       break;
     case 'joined':
+      clientState.joining = false;
+      clearTimeout(clientState.joinTimeout);
       clientState.balance = data.balance;
       document.getElementById('clientJoin').classList.add('hidden');
       document.getElementById('clientGame').classList.remove('hidden');

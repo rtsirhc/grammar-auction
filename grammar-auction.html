@@ -928,13 +928,14 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
     <h2 class="gold glow-text">📱 Join the Auction</h2>
     <div style="width:100%;max-width:280px;">
       <label style="color:#94a3b8;font-size:0.8rem;display:block;margin-bottom:4px;">Room Code</label>
-      <input type="text" id="clientRoomInput" maxlength="4" placeholder="0000" inputmode="numeric">
+      <input type="text" id="clientRoomInput" oninput="stopClientConnection()" maxlength="4" placeholder="0000" inputmode="numeric">
     </div>
     <div style="width:100%;max-width:280px;">
       <label style="color:#94a3b8;font-size:0.8rem;display:block;margin-bottom:4px;">Team Name</label>
       <input type="text" id="clientTeamInput" class="team-input" placeholder="e.g. The Tigers" maxlength="20">
     </div>
-    <button class="btn btn-gold btn-lg" onclick="connectToHost()">🔗 Join Game</button>
+    <button class="btn btn-gold btn-lg" id="clientJoinBtn" onclick="connectToHost()">🔗 Join Game</button>
+    <button type="button" class="btn btn-blue btn-sm" onclick="changeClientClass()">↔ Change class / Cambiar de clase</button>
     <p id="clientError" class="red" style="font-size:0.85rem;"></p>
   </div>
 
@@ -943,6 +944,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <div class="client-team-name" id="clientTeamDisplay"></div>
       <div class="client-balance">$<span id="clientBalanceDisplay">1000</span></div>
       <div class="client-status" id="clientStatusText">Waiting for game to start...</div>
+      <button type="button" class="btn btn-blue btn-sm" onclick="changeClientClass()">↔ Change class / Cambiar de clase</button>
     </div>
     <div id="clientWaiting" class="client-waiting">
       <p>👀 Watch the big screen!</p>
@@ -1878,7 +1880,7 @@ function showClientJoin() {
 }
 
 function setJoinUi(message, busy) {
-  const button = document.querySelector('#clientJoin button');
+  const button = document.getElementById('clientJoinBtn');
   const error = document.getElementById('clientError');
   if (error && message !== undefined) error.textContent = message;
   if (button) {
@@ -1886,11 +1888,42 @@ function setJoinUi(message, busy) {
     button.textContent = busy ? '⏳ Connecting…' : '🔗 Join Game';
   }
 }
+function stopClientConnection() {
+  clientState.kicked = true; // Stop recovery until Join Game is explicitly pressed again.
+  clientState.joining = false;
+  clearTimeout(clientState.reconnectTimer);
+  clearTimeout(clientState.joinTimeout);
+  const oldConn = clientState.conn;
+  const oldPeer = peer;
+  clientState.conn = null;
+  peer = null;
+  if (oldConn) oldConn.close();
+  if (oldPeer) oldPeer.destroy();
+  writeSaved('active', {role: 'client'});
+  window.history.replaceState(null, '', window.location.pathname + '?role=client');
+  setJoinUi('', false);
+}
+function changeClientClass() {
+  stopClientConnection();
+  clientState.room = '';
+  clientState.teamId = null;
+  clientState.teamName = '';
+  clientState.balance = 1000;
+  clientState.selectedChoice = null;
+  clientState.betSubmitted = false;
+  document.getElementById('clientGame').classList.add('hidden');
+  document.getElementById('clientJoin').classList.remove('hidden');
+  document.getElementById('clientRoomInput').value = '';
+  document.getElementById('clientTeamInput').value = '';
+  document.getElementById('clientRoomInput').focus();
+}
+
 function connectToHost() {
   const room = document.getElementById('clientRoomInput').value.trim();
   const name = document.getElementById('clientTeamInput').value.trim();
   if (!/^\d{4}$/.test(room)) { setJoinUi('Enter a 4-digit room code.', false); return; }
   if (!name) { setJoinUi('Enter your team name.', false); return; }
+  stopClientConnection();
   setJoinUi('Connecting to the teacher…', true);
   const saved = readSaved('client:' + room);
   clientState.room = room;
@@ -1902,10 +1935,11 @@ function connectToHost() {
   saveClientSession();
   clearTimeout(clientState.reconnectTimer); clearTimeout(clientState.joinTimeout);
   if (peer) peer.destroy();
-  peer = new Peer(undefined, {debug: 0});
-  peer.on('open', (id) => { clientState.peerId = id; reconnectClient(); });
-  peer.on('disconnected', () => { if (!clientState.kicked && !peer.destroyed) peer.reconnect(); });
-  peer.on('error', () => {
+  const connectingPeer = peer = new Peer(undefined, {debug: 0});
+  connectingPeer.on('open', (id) => { if (peer !== connectingPeer) return; clientState.peerId = id; reconnectClient(); });
+  connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !connectingPeer.destroyed) connectingPeer.reconnect(); });
+  connectingPeer.on('error', () => {
+    if (peer !== connectingPeer) return;
     if (clientState.joining) setJoinUi('Reconnecting to the teacher…', true);
     scheduleReconnect();
   });
@@ -1924,11 +1958,9 @@ function reconnectClient() {
   const conn = peer.connect('ESL-AUCTION-' + clientState.room, {reliable: true});
   clientState.conn = conn;
   conn.on('open', () => {
+    if (clientState.conn !== conn || clientState.kicked) { conn.close(); return; }
     clearTimeout(clientState.reconnectTimer);
     conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
-    clientState.joining = false;
-    clearTimeout(clientState.joinTimeout);
-    setJoinUi('', false);
   });
   conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
   conn.on('close', () => {
@@ -1936,9 +1968,10 @@ function reconnectClient() {
     document.getElementById('clientStatusText').textContent = 'Reconnecting to your class…';
     scheduleReconnect();
   });
-  conn.on('error', scheduleReconnect);
+  conn.on('error', () => { if (clientState.conn === conn) scheduleReconnect(); });
   clearTimeout(clientState.reconnectTimer);
   clientState.reconnectTimer = setTimeout(() => {
+    if (clientState.conn !== conn || clientState.kicked) return;
     if (!conn.open) { conn.close(); scheduleReconnect(); }
   }, 8000);
 }
@@ -1960,6 +1993,7 @@ function handleHostMessage(data) {
       if (clientState.conn) clientState.conn.close();
       break;
     case 'joined':
+      setJoinUi('', false);
       clientState.joining = false;
       clearTimeout(clientState.joinTimeout);
       clientState.balance = data.balance;

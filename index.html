@@ -2004,16 +2004,16 @@ function connectToHost() {
     // Leaving the peer alive here kept reconnecting to the old room and made the
     // join screen look stuck after a bad or expired code.
     stopClientConnection();
-    setJoinUi('Room not found or unavailable. Check the 4-digit code and try again.', false);
+    setJoinUi('Room not found or temporarily unavailable. Check the code and try again.', false);
     const roomInput = document.getElementById('clientRoomInput');
     if (roomInput) { roomInput.focus(); roomInput.select(); }
-  }, 6500);
+  }, 8000);
 }
 
 function scheduleReconnect() {
   clearTimeout(clientState.reconnectTimer);
   if (!clientState.kicked) {
-    const delay = Math.min(15000, 2000 * Math.pow(1.6, clientState.reconnectAttempts++));
+    const delay = Math.min(8000, 800 * Math.pow(2, clientState.reconnectAttempts++));
     clientState.reconnectTimer = setTimeout(reconnectClient, delay);
   }
 }
@@ -2037,8 +2037,15 @@ function reconnectClient() {
   conn.on('error', (err) => {
     if (clientState.conn !== conn) return;
     if (err && err.type === 'peer-unavailable') {
-      stopClientConnection();
-      setJoinUi('Room not found. Check the 4-digit code and try again.', false);
+      // PeerJS can report the host as unavailable during a short signaling hiccup.
+      // Retry several times before telling the student that the room is unavailable.
+      if (clientState.reconnectAttempts < 3) {
+        setJoinUi('The room is waking up… retrying connection.', true);
+        scheduleReconnect();
+      } else {
+        stopClientConnection();
+        setJoinUi('Room not found or temporarily unavailable. Check the code and try again.', false);
+      }
       return;
     }
     scheduleReconnect();

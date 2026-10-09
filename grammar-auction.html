@@ -2099,9 +2099,14 @@ function connectToHost() {
   });
   clientState.joinTimeout = setTimeout(() => {
     if (!clientState.joining) return;
-    // Do not destroy the peer on a slow network. Keep the session alive and
-    // retry with backoff; Change class is the explicit cancel action.
-    setJoinUi('Still trying to reach the teacher… Check the code or use Change class.', true);
+    // A data channel can report open while its first packet is stalled on a
+    // slow/carrier network. Close only that stale channel and retry; keep the
+    // anonymous Peer and the saved team identity alive.
+    setJoinUi('La red está tardando en responder… reintentando la conexión.', true);
+    const stalledConn = clientState.conn;
+    if (stalledConn) stalledConn.close();
+    clientState.conn = null;
+    scheduleReconnect();
   }, 8000);
 }
 
@@ -2140,7 +2145,7 @@ function reconnectClient() {
         // A signaling hiccup is not proof that the room is gone. Keep trying at
         // a capped interval; the student can cancel with Change class.
         clientState.reconnectAttempts = 0;
-        setJoinUi('Still trying to reach the teacher… Check the code or use Change class.', true);
+        setJoinUi('La red está tardando en responder… reintentando la conexión.', true);
         scheduleReconnect();
       } else {
         const status = document.getElementById('clientStatusText');

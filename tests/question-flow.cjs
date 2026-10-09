@@ -64,3 +64,18 @@ assert.equal(context.replacedUrl, '/?role=client');
 assert.equal(JSON.parse(saved.get('grammar-auction:v1:client:8866')).balance, 2700);
 assert.deepEqual(JSON.parse(saved.get('grammar-auction:v1:active')), {role: 'client'});
 console.log('Passed: change class cancels recovery, enables form and preserves previous room storage.');
+// A new team is accepted after the game starts and is synced into the live round.
+vm.runInContext(`
+  hostState.gameStarted = true;
+  hostState.bettingOpen = true;
+  hostState.currentQ = 1;
+  hostState.teams = {};
+  const lateMessages = [];
+  const lateConn = {open: true, send(message) { lateMessages.push(message); }};
+  handleClientMessage(lateConn, {type: 'join', teamId: 'late-team-123456789', teamName: 'Late Team'});
+`, context);
+assert.equal(vm.runInContext("hostState.teams['late-team-123456789'].balance", context), 1000);
+assert.equal(vm.runInContext("hostState.teams['late-team-123456789'].joinedLate", context), true);
+assert.equal(vm.runInContext("lateMessages.some(m => m.type === 'joined' && m.lateJoin)", context), true);
+assert.equal(vm.runInContext("lateMessages.some(m => m.type === 'openBetting')", context), true);
+console.log('Passed: late teams can join and receive the current round.');

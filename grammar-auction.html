@@ -1287,7 +1287,7 @@ function sendToTeam(team, message) {
   try { if (team.conn && team.conn.open) team.conn.send(message); } catch (_) {}
 }
 function syncTeam(team, id) {
-  sendToTeam(team, {type: 'joined', balance: team.balance});
+  sendToTeam(team, {type: 'joined', balance: team.balance, lateJoin: hostState.gameStarted});
   if (hostState.winner) { sendToTeam(team, {type: 'gameOver', winner: hostState.winner.name}); return; }
   if (hostState.finalChallengeActive) { sendToTeam(team, {type: 'finalChallenge'}); return; }
   if (!hostState.gameStarted) return;
@@ -1528,8 +1528,13 @@ function handleClientMessage(conn, data) {
       conn.teamId = data.teamId;
       let team = hostState.teams[conn.teamId];
       if (!team) {
-        if (hostState.gameStarted) { conn.send({type: 'joinRejected'}); return; }
-        team = hostState.teams[conn.teamId] = {name: String(data.teamName || 'Team').slice(0, 80), balance: 1000};
+        // Teams may join after the game starts. They begin with $1,000 and are
+        // synced into the current round instead of being rejected.
+        team = hostState.teams[conn.teamId] = {
+          name: String(data.teamName || 'Team').slice(0, 80),
+          balance: 1000,
+          joinedLate: hostState.gameStarted
+        };
       }
       const oldConn = team.conn;
       team.conn = conn;
@@ -2060,11 +2065,12 @@ function reconnectClient() {
 function handleHostMessage(data) {
   switch (data.type) {
     case 'joinRejected':
-      clientState.kicked = true;
-      clearTimeout(clientState.reconnectTimer);
-      removeSaved('client:' + clientState.room); removeSaved('active');
-      document.getElementById('clientError').textContent = 'This team is no longer in the class. Ask your teacher to start a new class.';
+      // Compatibility with an older teacher tab: treat this as temporary and
+      // retry without deleting the student's saved team identity or balance.
+      clientState.joining = true;
+      setJoinUi('The teacher is updating the room… retrying connection.', true);
       if (clientState.conn) clientState.conn.close();
+      scheduleReconnect();
       break;
     case 'KICK':
       clientState.kicked = true;
@@ -2082,7 +2088,7 @@ function handleHostMessage(data) {
       document.getElementById('clientGame').classList.remove('hidden');
       document.getElementById('clientTeamDisplay').textContent = clientState.teamName;
       document.getElementById('clientBalanceDisplay').textContent = clientState.balance.toLocaleString();
-      document.getElementById('clientStatusText').textContent = 'Connected! Waiting for game...';
+      document.getElementById('clientStatusText').textContent = data.lateJoin ? 'Connected! Joined the live class.' : 'Connected! Waiting for game...';
       break;
     case 'gameStarted':
       document.getElementById('clientStatusText').textContent = '🎮 Game is live!';

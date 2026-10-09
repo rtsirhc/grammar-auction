@@ -1522,8 +1522,16 @@ function initHost() {
   restoreHostView();
   saveHostSession();
 }
+function peerOptions() {
+  // PeerJS already supplies its public signaling/STUN defaults. A deployment
+  // may add a TURN relay through window.GRAMMAR_RUSH_TURN for carrier NATs.
+  const turn = window.GRAMMAR_RUSH_TURN;
+  const iceServers = [{urls: 'stun:stun.l.google.com:19302'}];
+  if (turn && turn.urls && turn.username && turn.credential) iceServers.push(turn);
+  return {debug: 0, config: {iceServers}};
+}
 function connectHostPeer(resuming) {
-  peer = new Peer('ESL-AUCTION-' + roomCode, {debug: 0});
+  peer = new Peer('ESL-AUCTION-' + roomCode, peerOptions());
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') {
       peer.destroy();
@@ -2022,6 +2030,9 @@ function handleClientOnline() {
 }
 window.addEventListener('offline', handleClientOffline);
 window.addEventListener('online', handleClientOnline);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && clientState.room && !clientState.kicked && !clientState.connectionPaused) handleClientOnline();
+});
 function pauseClientConnection() {
   clearTimeout(clientState.reconnectTimer);
   clearTimeout(clientState.joinTimeout);
@@ -2078,7 +2089,7 @@ function connectToHost() {
   saveClientSession();
   clearTimeout(clientState.reconnectTimer); clearTimeout(clientState.joinTimeout);
   if (peer) peer.destroy();
-  const connectingPeer = peer = new Peer(undefined, {debug: 0});
+  const connectingPeer = peer = new Peer(undefined, peerOptions());
   connectingPeer.on('open', (id) => { if (peer !== connectingPeer) return; clientState.peerId = id; reconnectClient(); });
   connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !clientState.connectionPaused && !clientState.offline && !connectingPeer.destroyed) connectingPeer.reconnect(); });
   connectingPeer.on('error', () => {

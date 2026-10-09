@@ -12,7 +12,7 @@ const element = id => {
 const context = vm.createContext({
   window: {location: {search: ''}, addEventListener() {}}, URLSearchParams,
   localStorage: {getItem() { return null; }, setItem() {}},
-  document: {getElementById: element, createElement() { return {textContent: '', innerHTML: ''}; }},
+  document: {getElementById: element, addEventListener() {}, createElement() { return {textContent: '', innerHTML: ''}; }},
   alert: message => { context.alertMessage = message; },
   setInterval() { return 1; }, clearInterval() {}, clearTimeout() {}, setTimeout() {}, console
 });

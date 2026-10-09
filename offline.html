@@ -1557,7 +1557,7 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.l
 (function() {
   const params = new URLSearchParams(window.location.search);
   const active = readSaved('active') || {};
-  const r = params.get('role') || active.role;
+  const r = params.get('role') || 'offline';
   const room = params.get('room') || active.room;
   if (r === 'offline') initHost(true);
   else if (r === 'host') initHost();

@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>⚡ Grammar Rush</title>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; }
@@ -826,6 +825,21 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
 .answer-reveal .correction { color:var(--park-ink) !important; }
 .answer-reveal .answer-explanation { color:var(--park-ink) !important; }
 .answer-reveal .answer-explanation strong { color:var(--park-red) !important; }
+
+.offline-download {grid-column:1 / -1; margin-top:20px; font-size:.85rem; line-height:1.5;}
+#offlineSetup {display:flex; flex-direction:column; gap:18px; color:var(--park-ink);}
+#offlineSetup.hidden {display:none;}
+#offlineSetup input, .offline-bet-controls input {background:white; color:var(--park-ink); border:3px solid var(--park-ink); border-radius:4px; padding:8px; width:100%; font:700 1.1rem system-ui;}
+#offlineSetup form {display:flex; flex-direction:column; gap:12px;}
+.offline-mode .team-count-selector {display:none;}
+.offline-bet-controls {display:flex; flex-direction:column; gap:7px; text-align:left; color:var(--park-ink);}
+.offline-bet-controls > div {display:flex; gap:8px; flex-wrap:wrap;}
+.offline-bet-controls .btn {flex:1; padding:8px;}
+.offline-bet-controls .picked {outline:3px solid var(--park-blue); outline-offset:2px;}
+.offline-mode .bets-grid {overflow-y:auto; min-height:240px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+.offline-mode .answer-reveal.show {max-height:260px;}
+.offline-mode .answer-reveal .answer-explanation, .offline-mode .answer-reveal .answer-example {font-size:1.1rem;}
+.offline-mode .role-cards {gap:12px;}
 </style>
 </head>
 <body>
@@ -845,7 +859,12 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <h2>Player Station</h2>
       <p>Use your phone or tablet. Read, choose, and bet.</p>
     </div>
+    <div class="role-card card" onclick="initHost(true)">
+      <div class="icon">🎪</div><h2>Offline · Proyector</h2>
+      <p>Una laptop, equipos en el salón y marcador manual. Sin celulares ni conexión.</p>
+    </div>
   </div>
+  <div class="offline-download"><a class="btn btn-blue" href="offline.html" download="Grammar-Rush-Offline.html">↓ Descargar juego offline</a><p id="offlineReady">Después de abrirlo puedes jugar sin internet. Descarga una copia para abrirla cualquier día.</p></div>
 </div>
 
 <!-- HOST SCREEN -->
@@ -878,7 +897,14 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
       <button class="btn btn-gold btn-lg" id="startGameBtn" onclick="startGame()" disabled>🎮 Start Game</button>
     </div>
-    <div class="card qr-section">
+    <div class="card hidden" id="offlineSetup">
+      <h3>🎪 Equipos del salón</h3><p>Cada equipo empieza con $1,000. Registra sus respuestas y apuestas desde la laptop.</p>
+      <label for="offlineTeamName">Nombre del equipo</label>
+      <form onsubmit="event.preventDefault(); addOfflineTeam()"><input id="offlineTeamName" maxlength="40" placeholder="Los Tigres" required><button class="btn btn-gold" type="submit">＋ Añadir equipo</button></form>
+      <p>Correct: gana su apuesta y comparte el bonus. Incorrect: pierde su apuesta. Sin respuesta: pierde 20% del saldo.</p>
+      <a class="btn btn-blue btn-sm" href="offline.html" download="Grammar-Rush-Offline.html">↓ Guardar copia offline</a>
+    </div>
+    <div class="card qr-section" id="onlineSetup">
       <h3 class="gold" style="margin-bottom:8px;font-size:0.95rem;">📲 Scan to Join</h3>
       <div id="qrCode"></div>
       <div class="join-link" id="joinLinkDisplay"></div>
@@ -1265,6 +1291,7 @@ function normalizeSpelling(str) {
 }
 
 // ===== STATE =====
+let offlineMode = false;
 let role = null, roomCode = '', peer = null, joinUrl = '';
 
 const hostState = {
@@ -1328,6 +1355,11 @@ function syncTeam(team, id) {
 }
 function runRoundTimer() {
   clearInterval(hostState.timerInterval);
+  if (offlineMode) {
+    document.getElementById('qTimer').textContent = 'REGISTRA LAS APUESTAS';
+    document.getElementById('skipTimerBtn').textContent = '✓ Revelar y puntuar';
+    return;
+  }
   const tick = () => {
     hostState.timeLeft = Math.max(0, Math.ceil((hostState.bettingDeadline - Date.now()) / 1000));
     const timer = document.getElementById('qTimer');
@@ -1355,6 +1387,7 @@ function restoreHostView() {
   document.getElementById('questionDisplay').classList.remove('hidden');
   document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
   document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
+  document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
   document.getElementById('nextQuestionBtn').textContent = '▶️ Next Question';
   document.getElementById('nextQuestionBtn').onclick = nextQuestion;
@@ -1370,6 +1403,13 @@ function restoreHostView() {
   }
 }
 function newClass() {
+  if (offlineMode) {
+    if (!confirm('¿Empezar una nueva partida offline? Se reiniciarán equipos y saldo.')) return;
+    removeSaved('host:offline');
+    writeSaved('active', {role:'offline', room:'offline'});
+    window.location.href = window.location.pathname + '?role=offline';
+    return;
+  }
   const suggested = String(Math.floor(1000 + Math.random() * 9000));
   const input = prompt('Room code for the new class (4 digits). A new code starts with fresh teams and $1,000 each.', suggested);
   if (input === null) return;
@@ -1457,13 +1497,70 @@ function toggleTopicSettings(open) {
   if (open) modal.querySelector('.topic-modal-close').focus();
 }
 
+// Offline play never creates a Peer or makes network requests.
+const onlineLibraryLoads = new Map();
+function loadOnlineLibrary(url, symbol) {
+  if (window[symbol]) return Promise.resolve();
+  if (onlineLibraryLoads.has(symbol)) return onlineLibraryLoads.get(symbol);
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = resolve;
+    script.onerror = () => { onlineLibraryLoads.delete(symbol); script.remove(); reject(new Error('Network unavailable')); };
+    document.head.appendChild(script);
+  });
+  onlineLibraryLoads.set(symbol, promise);
+  return promise;
+}
+function addOfflineTeam() {
+  if (!offlineMode || hostState.gameStarted) return;
+  const input = document.getElementById('offlineTeamName');
+  const name = input.value.trim();
+  if (!name) return;
+  if (Object.keys(hostState.teams).length >= 12) { alert('Máximo 12 equipos para el proyector.'); return; }
+  const id = 'local-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  hostState.teams[id] = {name, balance:1000};
+  input.value = '';
+  saveHostSession(); updateConnectedTeams(); updateStartBtn(); input.focus();
+}
+function offlineBetControls(id, team, bet) {
+  return `<div class="offline-bet-controls">
+    <label for="stake-${id}">Apuesta ($)</label>
+    <input id="stake-${id}" type="number" min="${Math.min(100, team.balance)}" max="${team.balance}" step="1" value="${bet ? bet.amount : Math.min(100, team.balance)}" aria-label="Apuesta de ${escHtml(team.name)}">
+    <div><button class="btn btn-gold btn-sm ${bet && bet.choice === 'LEGAL' ? 'picked' : ''}" onclick="recordOfflineBet('${id}', 'LEGAL')">✓ Correct</button>
+    <button class="btn btn-red btn-sm ${bet && bet.choice === 'ILLEGAL' ? 'picked' : ''}" onclick="recordOfflineBet('${id}', 'ILLEGAL')">✕ Incorrect</button></div>
+    ${bet ? `<button class="btn btn-blue btn-sm" onclick="clearOfflineBet('${id}')">Deshacer apuesta</button>` : ''}
+  </div>`;
+}
+function recordOfflineBet(id, choice) {
+  const team = hostState.teams[id];
+  if (!offlineMode || !hostState.bettingOpen || !team || !['LEGAL','ILLEGAL'].includes(choice)) return;
+  const amount = Number(document.getElementById('stake-' + id).value);
+  if (!Number.isInteger(amount) || amount < Math.min(100, team.balance) || amount > team.balance) {
+    alert('La apuesta debe ser un número entero entre ' + Math.min(100, team.balance) + ' y ' + team.balance + '.'); return;
+  }
+  hostState.bets[id] = {choice, amount};
+  saveHostSession(); updateBetsDisplay(); checkAllBetsIn();
+}
+function clearOfflineBet(id) {
+  if (!offlineMode || !hostState.bettingOpen) return;
+  delete hostState.bets[id]; saveHostSession(); updateBetsDisplay();
+}
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => {
+    const status = document.getElementById('offlineReady');
+    if (status) status.textContent = '✓ Juego guardado para usar sin internet. También puedes descargar una copia.';
+  }).catch(() => {});
+}
+
 // ===== AUTO-DETECT ROLE / RESUME =====
 (function() {
   const params = new URLSearchParams(window.location.search);
   const active = readSaved('active') || {};
   const r = params.get('role') || active.role;
   const room = params.get('room') || active.room;
-  if (r === 'host') initHost();
+  if (r === 'offline') initHost(true);
+  else if (r === 'host') initHost();
   else if (r === 'client') {
     showClientJoin();
     if (room) {
@@ -1478,30 +1575,35 @@ function toggleTopicSettings(open) {
 })();
 
 // ===== HOST =====
-function initHost() {
+function initHost(offline = false) {
+  offlineMode = offline;
   role = 'host';
   const params = new URLSearchParams(window.location.search);
   const active = readSaved('active') || {};
-  const requestedRoom = params.get('room') || (active.role === 'host' ? active.room : null);
+  const requestedRoom = offlineMode ? 'offline' : (params.get('room') || (active.role === 'host' ? active.room : null));
   const saved = requestedRoom ? readSaved('host:' + requestedRoom) : readSaved('host');
   if (saved && saved.state && saved.teams) {
     Object.assign(hostState, saved.state);
     hostState.teams = saved.teams;
   }
   roomCode = saved ? saved.roomCode : (/^\d{4}$/.test(requestedRoom || '') ? requestedRoom : String(Math.floor(1000 + Math.random() * 9000)));
-  writeSaved('active', {role: 'host', room: roomCode});
+  writeSaved('active', {role: offlineMode ? 'offline' : 'host', room: roomCode});
   document.getElementById('roleSelect').classList.add('hidden');
   document.getElementById('hostScreen').classList.remove('hidden');
   document.getElementById('hostRoomCode').textContent = roomCode;
   renderTopicPicker();
 
-  joinUrl = `${window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
-  document.getElementById('joinLinkDisplay').textContent = joinUrl;
-
-  new QRCode(document.getElementById('qrCode'), {
-    text: joinUrl, width: 180, height: 180,
-    colorDark: '#f59e0b', colorLight: '#0f172a', correctLevel: QRCode.CorrectLevel.M
-  });
+  document.body.classList.toggle('offline-mode', offlineMode);
+  document.getElementById('offlineSetup').classList.toggle('hidden', !offlineMode);
+  document.getElementById('onlineSetup').classList.toggle('hidden', offlineMode);
+  if (offlineMode) document.getElementById('hostRoomCode').textContent = 'OFFLINE';
+  else {
+    joinUrl = `${window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
+    document.getElementById('joinLinkDisplay').textContent = joinUrl;
+    loadOnlineLibrary('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'QRCode').then(() => {
+      new QRCode(document.getElementById('qrCode'), {text: joinUrl, width:180, height:180});
+    }).catch(() => { document.getElementById('qrCode').textContent = 'Use the student link below.'; });
+  }
 
   const btnContainer = document.getElementById('teamCountBtns');
   for (let i = 2; i <= 8; i++) {
@@ -1518,7 +1620,7 @@ function initHost() {
     btnContainer.appendChild(b);
   }
 
-  connectHostPeer(Boolean(saved));
+  if (!offlineMode) connectHostPeer(Boolean(saved));
   restoreHostView();
   saveHostSession();
 }
@@ -1530,7 +1632,9 @@ function peerOptions() {
   if (turn && turn.urls && turn.username && turn.credential) iceServers.push(turn);
   return {debug: 0, config: {iceServers}};
 }
-function connectHostPeer(resuming) {
+async function connectHostPeer(resuming) {
+  try { await loadOnlineLibrary('https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js', 'Peer'); }
+  catch (_) { setTimeout(() => connectHostPeer(true), 4000); return; }
   peer = new Peer('ESL-AUCTION-' + roomCode, peerOptions());
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') {
@@ -1606,7 +1710,7 @@ function updateConnectedTeams() {
     return;
   }
   container.innerHTML = teamEntries.map(([pid, t]) =>
-    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}${t.conn && t.conn.open ? '' : ' · reconnecting'}</div><button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button></div>`
+    `<div class="team-chip"><div class="dot"></div><div class="name">${escHtml(t.name)}${offlineMode || (t.conn && t.conn.open) ? '' : ' · reconnecting'}</div><button class="kick-btn" onclick="kickTeam('${pid}')" title="Remove Team">✕</button></div>`
   ).join('');
 }
 
@@ -1696,6 +1800,7 @@ function nextQuestion() {
 
   document.getElementById('questionDisplay').classList.remove('hidden');
   document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
+  document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
   document.getElementById('qTimer').textContent = '30';
   document.getElementById('qTimer').classList.remove('urgent');
@@ -1733,7 +1838,7 @@ function scheduleAutoAdvance() {
 }
 function checkAllBetsIn() {
   if (!hostState.autoAdvance || !hostState.bettingOpen || hostState.roundRevealed) return;
-  const activeTeams = Object.entries(hostState.teams).filter(([, team]) => team.conn && team.conn.open);
+  const activeTeams = Object.entries(hostState.teams).filter(([, team]) => offlineMode || (team.conn && team.conn.open));
   if (activeTeams.length && activeTeams.every(([pid]) => hostState.bets[pid])) skipTimer();
 }
 
@@ -1854,6 +1959,7 @@ function updateBetsDisplay() {
         ${bet
           ? `<div class="bet-info"><span class="bet-amount">💰 \$${bet.amount.toLocaleString()}</span></div>`
           : `<div class="bet-info" style="color:#64748b;">⏳ Waiting...</div>`}
+        ${offlineMode && hostState.bettingOpen ? offlineBetControls(pid, team, bet) : ''}
       </div>`;
   }).join('');
 }
@@ -2068,7 +2174,7 @@ function changeClientClass() {
   document.getElementById('clientRoomInput').focus();
 }
 
-function connectToHost() {
+async function connectToHost() {
   const room = document.getElementById('clientRoomInput').value.trim();
   const name = document.getElementById('clientTeamInput').value.trim();
   if (!/^\d{4}$/.test(room)) { setJoinUi('Enter a 4-digit room code.', false); return; }
@@ -2089,6 +2195,9 @@ function connectToHost() {
   saveClientSession();
   clearTimeout(clientState.reconnectTimer); clearTimeout(clientState.joinTimeout);
   if (peer) peer.destroy();
+  try { await loadOnlineLibrary('https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js', 'Peer'); }
+  catch (_) { setJoinUi('Could not load the connection service. Please try again.', false); return; }
+  if (clientState.kicked || clientState.connectionPaused) return;
   const connectingPeer = peer = new Peer(undefined, peerOptions());
   connectingPeer.on('open', (id) => { if (peer !== connectingPeer) return; clientState.peerId = id; reconnectClient(); });
   connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !clientState.connectionPaused && !clientState.offline && !connectingPeer.destroyed) connectingPeer.reconnect(); });

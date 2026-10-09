@@ -79,3 +79,22 @@ assert.equal(vm.runInContext("hostState.teams['late-team-123456789'].joinedLate"
 assert.equal(vm.runInContext("lateMessages.some(m => m.type === 'joined' && m.lateJoin)", context), true);
 assert.equal(vm.runInContext("lateMessages.some(m => m.type === 'openBetting')", context), true);
 console.log('Passed: late teams can join and receive the current round.');
+// Auto mode can be toggled and triggers a skip once every connected team has bet.
+vm.runInContext(`
+  hostState.autoAdvance = false;
+  toggleAutoAdvance(true);
+  const autoWasEnabled = hostState.autoAdvance;
+  let autoSkipCalled = false;
+  skipTimer = () => { autoSkipCalled = true; };
+  hostState.bettingOpen = true; hostState.roundRevealed = false;
+  hostState.teams = {
+    a: {conn: {open: true}}, b: {conn: {open: true}}
+  };
+  hostState.bets = {a: {amount: 100}, b: {amount: 100}};
+  checkAllBetsIn();
+  toggleAutoAdvance(false);
+`, context);
+assert.equal(vm.runInContext('autoWasEnabled', context), true);
+assert.equal(vm.runInContext('autoSkipCalled', context), true);
+assert.equal(vm.runInContext('hostState.autoAdvance', context), false);
+console.log('Passed: auto mode skips after all connected teams bet and can be disabled.');

@@ -802,6 +802,30 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
   .topic-picker-title { display:block; }
   .topic-picker-title small { display:block; margin-top:3px; }
 }
+
+/* Keep the answer lesson readable without pushing player cards off the game board. */
+.game-left { min-height:0; }
+.answer-reveal.show { flex:0 1 auto; max-height:220px; overflow-y:auto; overflow-x:hidden; padding:12px 16px; }
+.answer-reveal .verdict { font-size:1.35rem; line-height:1.1; }
+.answer-reveal .correction { margin-top:7px; font-size:1.02rem; line-height:1.25; }
+.answer-reveal .answer-explanation { margin-top:7px; font-size:.9rem; line-height:1.3; }
+.answer-reveal .answer-example { margin-top:7px; padding:7px 10px; font-size:.88rem; line-height:1.25; }
+.bets-grid { min-height:130px; }
+.q-level { margin:4px 0 5px; }
+@media (max-width:768px) {
+  .answer-reveal.show { max-height:245px; }
+  .bets-grid { min-height:180px; }
+}
+
+.auto-mode-toggle { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:5px 9px; border:3px solid var(--park-ink); background:var(--park-green); color:var(--park-ink); box-shadow:3px 3px 0 var(--park-ink); font-weight:900; font-size:.72rem; cursor:pointer; }
+.auto-mode-toggle input { accent-color:var(--park-red); width:16px; height:16px; }
+.auto-mode-toggle small { font-size:.62rem; font-weight:700; opacity:.8; }
+@media (max-width:768px) { .auto-mode-toggle { flex:1 1 100%; justify-content:center; } }
+
+/* High-contrast answer lesson on the light circus card. */
+.answer-reveal .correction { color:var(--park-ink) !important; }
+.answer-reveal .answer-explanation { color:var(--park-ink) !important; }
+.answer-reveal .answer-explanation strong { color:var(--park-red) !important; }
 </style>
 </head>
 <body>
@@ -892,6 +916,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <div class="host-controls" id="hostControls">
         <button class="btn btn-gold" id="nextQuestionBtn" onclick="nextQuestion()">▶️ Next Question</button>
         <button class="btn btn-blue btn-sm" id="skipTimerBtn" onclick="skipTimer()" disabled>⏩ Skip Timer</button>
+        <label class="auto-mode-toggle"><input type="checkbox" id="autoAdvanceToggle" onchange="toggleAutoAdvance(this.checked)"> <span>⚡ Auto round</span><small>skip + next in 5s</small></label>
         <button class="btn btn-blue btn-sm" onclick="newClass()">New room / class</button>
         <button class="btn btn-red btn-sm" id="endGameBtn" onclick="triggerFinalChallenge()">🏁 End Game</button>
       </div>
@@ -1249,7 +1274,7 @@ const hostState = {
   timerInterval: null, timeLeft: 30, bettingOpen: false,
   gameStarted: false, roundRevealed: false,
   finalChallengeActive: false, fcTeamOrder: [], fcCurrentIndex: 0,
-  roundResults: {}, bettingDeadline: null, winner: null
+  roundResults: {}, bettingDeadline: null, winner: null, autoAdvance: false, autoAdvanceTimer: null
 };
 
 const clientState = {
@@ -1270,7 +1295,7 @@ function removeSaved(key) {
 }
 function saveHostSession() {
   if (role !== 'host') return;
-  const {timerInterval, teams, ...state} = hostState;
+  const {timerInterval, autoAdvanceTimer, teams, ...state} = hostState;
   writeSaved('host:' + roomCode, {roomCode, state, teams: Object.fromEntries(
     Object.entries(teams).map(([id, team]) => [id, {name: team.name, balance: team.balance, lastResult: team.lastResult || null}])
   )});
@@ -1335,10 +1360,13 @@ function restoreHostView() {
   document.getElementById('nextQuestionBtn').onclick = nextQuestion;
   document.getElementById('nextQuestionBtn').disabled = hostState.bettingOpen;
   document.getElementById('skipTimerBtn').disabled = !hostState.bettingOpen;
+  const autoToggle = document.getElementById('autoAdvanceToggle');
+  if (autoToggle) autoToggle.checked = Boolean(hostState.autoAdvance);
   if (hostState.bettingOpen) runRoundTimer();
   else if (hostState.roundRevealed) {
     renderAnswer(q);
     updateBetsDisplayRevealed(hostState.roundResults);
+    scheduleAutoAdvance();
   }
 }
 function newClass() {
@@ -1554,6 +1582,7 @@ function handleClientMessage(conn, data) {
           saveHostSession();
           conn.send({ type: 'betConfirmed', choice: data.choice });
           updateBetsDisplay();
+          checkAllBetsIn();
         }
       }
       break;
@@ -1633,6 +1662,8 @@ function startGame() {
 }
 
 function nextQuestion() {
+  clearTimeout(hostState.autoAdvanceTimer);
+  hostState.autoAdvanceTimer = null;
   if (hostState.bettingOpen || hostState.finalChallengeActive || hostState.winner) return;
   if (hostState.currentQ >= hostState.shuffledQuestions.length) {
     const pool = questionPool();
@@ -1672,6 +1703,30 @@ function nextQuestion() {
 
   saveHostSession();
   runRoundTimer();
+}
+
+function toggleAutoAdvance(enabled) {
+  hostState.autoAdvance = Boolean(enabled);
+  if (!hostState.autoAdvance) {
+    clearTimeout(hostState.autoAdvanceTimer);
+    hostState.autoAdvanceTimer = null;
+  } else if (hostState.roundRevealed && !hostState.bettingOpen) {
+    scheduleAutoAdvance();
+  }
+  saveHostSession();
+}
+function scheduleAutoAdvance() {
+  clearTimeout(hostState.autoAdvanceTimer);
+  if (!hostState.autoAdvance || !hostState.roundRevealed || hostState.bettingOpen) return;
+  hostState.autoAdvanceTimer = setTimeout(() => {
+    hostState.autoAdvanceTimer = null;
+    if (hostState.autoAdvance && hostState.roundRevealed && !hostState.bettingOpen) nextQuestion();
+  }, 5000);
+}
+function checkAllBetsIn() {
+  if (!hostState.autoAdvance || !hostState.bettingOpen || hostState.roundRevealed) return;
+  const activeTeams = Object.entries(hostState.teams).filter(([, team]) => team.conn && team.conn.open);
+  if (activeTeams.length && activeTeams.every(([pid]) => hostState.bets[pid])) skipTimer();
 }
 
 function skipTimer() {
@@ -1762,6 +1817,7 @@ function revealAnswer() {
   updateBetsDisplayRevealed(results);
   updateLeaderboard();
   document.getElementById('nextQuestionBtn').disabled = false;
+  scheduleAutoAdvance();
 
 }
 

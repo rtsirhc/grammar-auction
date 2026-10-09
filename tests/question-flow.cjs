@@ -6,11 +6,11 @@ const script = html.split('<script>')[1].split('</script>')[0];
 const elements = new Map();
 const element = id => {
   if (!elements.has(id)) elements.set(id, {textContent: '', innerHTML: '', disabled: false,
-    classList: {add() {}, remove() {}, toggle() {}}});
+    classList: {add() {}, remove() {}, toggle() {}, contains() { return false; }}});
   return elements.get(id);
 };
 const context = vm.createContext({
-  window: {location: {search: ''}}, URLSearchParams,
+  window: {location: {search: ''}, addEventListener() {}}, URLSearchParams,
   localStorage: {getItem() { return null; }, setItem() {}},
   document: {getElementById: element, createElement() { return {textContent: '', innerHTML: ''}; }},
   alert: message => { context.alertMessage = message; },
@@ -98,3 +98,15 @@ assert.equal(vm.runInContext('autoWasEnabled', context), true);
 assert.equal(vm.runInContext('autoSkipCalled', context), true);
 assert.equal(vm.runInContext('hostState.autoAdvance', context), false);
 console.log('Passed: auto mode skips after all connected teams bet and can be disabled.');
+// Wi-Fi transitions pause timers without marking the team as kicked.
+vm.runInContext(`
+  role = 'client';
+  clientState.room = '3285'; clientState.kicked = false; clientState.connectionPaused = false; clientState.hasJoined = true;
+  handleClientOffline();
+  const wifiDrop = {offline: clientState.offline, kicked: clientState.kicked};
+  handleClientOnline();
+`, context);
+assert.equal(vm.runInContext('wifiDrop.offline', context), true);
+assert.equal(vm.runInContext('wifiDrop.kicked', context), false);
+assert.equal(vm.runInContext('clientState.offline', context), false);
+console.log('Passed: Wi-Fi loss preserves the student session and online recovery resumes.');

@@ -1279,7 +1279,7 @@ const hostState = {
 
 const clientState = {
   conn: null, teamName: '', balance: 1000,
-  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, joinTimeout: null, reconnectAttempts: 0, kicked: false, joining: false
+  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, joinTimeout: null, reconnectAttempts: 0, connectionPaused: false, hasJoined: false, offline: false, kicked: false, joining: false
 };
 
 // Persist plain game data only; PeerJS connections are recreated after a reload.
@@ -1993,7 +1993,6 @@ function showClientJoin() {
   document.getElementById('roleSelect').classList.add('hidden');
   document.getElementById('clientScreen').classList.remove('hidden');
 }
-
 function setJoinUi(message, busy) {
   const button = document.getElementById('clientJoinBtn');
   const error = document.getElementById('clientError');
@@ -2003,21 +2002,46 @@ function setJoinUi(message, busy) {
     button.textContent = busy ? '⏳ Connecting…' : '🔗 Join Game';
   }
 }
-function stopClientConnection() {
-  clientState.kicked = true; // Stop recovery until Join Game is explicitly pressed again.
-  clientState.joining = false;
+function handleClientOffline() {
+  if (role !== 'client') return;
+  clientState.offline = true;
+  clearTimeout(clientState.reconnectTimer);
+  const status = document.getElementById('clientStatusText');
+  if (status && !document.getElementById('clientGame').classList.contains('hidden')) status.textContent = '📡 Wi‑Fi lost. Your team is saved; reconnecting when internet returns…';
+  else setJoinUi('No internet connection. Your room and team are saved.', false);
+}
+function handleClientOnline() {
+  if (role !== 'client') return;
+  clientState.offline = false;
+  if (!clientState.kicked && !clientState.connectionPaused && clientState.room) {
+    const status = document.getElementById('clientStatusText');
+    if (status && !document.getElementById('clientGame').classList.contains('hidden')) status.textContent = '📡 Internet restored. Reconnecting…';
+    if (peer && peer.disconnected && !peer.destroyed) peer.reconnect();
+    scheduleReconnect();
+  }
+}
+window.addEventListener('offline', handleClientOffline);
+window.addEventListener('online', handleClientOnline);
+function pauseClientConnection() {
   clearTimeout(clientState.reconnectTimer);
   clearTimeout(clientState.joinTimeout);
   const oldConn = clientState.conn;
   const oldPeer = peer;
   clientState.conn = null;
   peer = null;
+  clientState.joining = false;
+  clientState.connectionPaused = true;
   if (oldConn) oldConn.close();
   if (oldPeer) oldPeer.destroy();
+}
+function stopClientConnection() {
+  pauseClientConnection();
+  clientState.kicked = true; // Only explicit class changes stop recovery permanently.
   writeSaved('active', {role: 'client'});
   window.history.replaceState(null, '', window.location.pathname + '?role=client');
   setJoinUi('', false);
 }
+
 function changeClientClass() {
   stopClientConnection();
   clientState.room = '';
@@ -2046,6 +2070,9 @@ function connectToHost() {
   clientState.teamName = saved ? saved.teamName : name;
   clientState.balance = saved ? saved.balance : 1000;
   clientState.kicked = false;
+  clientState.connectionPaused = false;
+  clientState.hasJoined = false;
+  clientState.offline = false;
   clientState.joining = true;
   clientState.reconnectAttempts = 0;
   saveClientSession();
@@ -2053,7 +2080,7 @@ function connectToHost() {
   if (peer) peer.destroy();
   const connectingPeer = peer = new Peer(undefined, {debug: 0});
   connectingPeer.on('open', (id) => { if (peer !== connectingPeer) return; clientState.peerId = id; reconnectClient(); });
-  connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !connectingPeer.destroyed) connectingPeer.reconnect(); });
+  connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !clientState.connectionPaused && !clientState.offline && !connectingPeer.destroyed) connectingPeer.reconnect(); });
   connectingPeer.on('error', () => {
     if (peer !== connectingPeer) return;
     if (clientState.joining) setJoinUi('Reconnecting to the teacher…', true);
@@ -2061,32 +2088,27 @@ function connectToHost() {
   });
   clientState.joinTimeout = setTimeout(() => {
     if (!clientState.joining) return;
-    // Stop the failed attempt so the student can replace the code immediately.
-    // Leaving the peer alive here kept reconnecting to the old room and made the
-    // join screen look stuck after a bad or expired code.
-    stopClientConnection();
-    setJoinUi('Room not found or temporarily unavailable. Check the code and try again.', false);
-    const roomInput = document.getElementById('clientRoomInput');
-    if (roomInput) { roomInput.focus(); roomInput.select(); }
+    // Do not destroy the peer on a slow network. Keep the session alive and
+    // retry with backoff; Change class is the explicit cancel action.
+    setJoinUi('Still trying to reach the teacher… Check the code or use Change class.', true);
   }, 8000);
 }
 
 function scheduleReconnect() {
   clearTimeout(clientState.reconnectTimer);
-  if (!clientState.kicked) {
+  if (!clientState.kicked && !clientState.connectionPaused && !clientState.offline) {
     const delay = Math.min(8000, 800 * Math.pow(2, clientState.reconnectAttempts++));
     clientState.reconnectTimer = setTimeout(reconnectClient, delay);
   }
 }
 function reconnectClient() {
-  if (clientState.kicked || !peer || peer.destroyed) return;
+  if (clientState.kicked || clientState.connectionPaused || clientState.offline || !peer || peer.destroyed) return;
   if (clientState.conn && clientState.conn.open) return;
   const conn = peer.connect('ESL-AUCTION-' + clientState.room, {reliable: true});
   clientState.conn = conn;
   conn.on('open', () => {
     if (clientState.conn !== conn || clientState.kicked) { conn.close(); return; }
     clearTimeout(clientState.reconnectTimer);
-    clientState.reconnectAttempts = 0;
     conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
   });
   conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
@@ -2103,9 +2125,16 @@ function reconnectClient() {
       if (clientState.reconnectAttempts < 3) {
         setJoinUi('The room is waking up… retrying connection.', true);
         scheduleReconnect();
+      } else if (!clientState.hasJoined) {
+        // A signaling hiccup is not proof that the room is gone. Keep trying at
+        // a capped interval; the student can cancel with Change class.
+        clientState.reconnectAttempts = 0;
+        setJoinUi('Still trying to reach the teacher… Check the code or use Change class.', true);
+        scheduleReconnect();
       } else {
-        stopClientConnection();
-        setJoinUi('Room not found or temporarily unavailable. Check the code and try again.', false);
+        const status = document.getElementById('clientStatusText');
+        if (status) status.textContent = '📡 Connection interrupted. Keeping your team saved and retrying…';
+        scheduleReconnect();
       }
       return;
     }
@@ -2123,8 +2152,9 @@ function handleHostMessage(data) {
     case 'joinRejected':
       // Compatibility with an older teacher tab: treat this as temporary and
       // retry without deleting the student's saved team identity or balance.
-      clientState.joining = true;
-      setJoinUi('The teacher is updating the room… retrying connection.', true);
+      clientState.joining = !clientState.hasJoined;
+      if (clientState.joining) setJoinUi('The teacher is updating the room… retrying connection.', true);
+      else document.getElementById('clientStatusText').textContent = '📡 Reconnecting to the teacher…';
       if (clientState.conn) clientState.conn.close();
       scheduleReconnect();
       break;
@@ -2138,6 +2168,9 @@ function handleHostMessage(data) {
     case 'joined':
       setJoinUi('', false);
       clientState.joining = false;
+      clientState.hasJoined = true;
+      clientState.connectionPaused = false;
+      clientState.reconnectAttempts = 0;
       clearTimeout(clientState.joinTimeout);
       clientState.balance = data.balance;
       document.getElementById('clientJoin').classList.add('hidden');

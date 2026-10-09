@@ -177,7 +177,15 @@ input:focus { border-color: #f59e0b; }
 .answer-reveal.legal-answer { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); }
 .answer-reveal.illegal-answer { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); }
 .answer-reveal .verdict { font-size: 1.4rem; font-weight: 900; }
-.answer-reveal .correction { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+.answer-reveal .correction { font-size: 1.18rem; color: #fff; margin-top: 10px; line-height: 1.45; font-weight: 800; }
+.answer-reveal .answer-explanation { margin: 10px auto 0; max-width: 760px; color: #fff7d6; font-size: 1rem; line-height: 1.45; }
+.answer-reveal .answer-example { margin: 10px auto 0; max-width: 760px; padding: 9px 12px; color: #241536; background: #ffe16b; border: 3px solid #241536; font-size: 1rem; line-height: 1.35; font-weight: 800; }
+.level-pill { display:inline-block; padding:3px 9px; border:2px solid currentColor; border-radius:4px; font-size:.72rem; font-weight:900; letter-spacing:.08em; }
+.level-A1 { color:#087f5b; background:#b7f7d8; } .level-A2 { color:#075985; background:#bae6fd; }
+.level-B1 { color:#92400e; background:#fed7aa; } .level-B2 { color:#9f1239; background:#fbcfe8; }
+.client-result .feedback-title { margin-top:16px; color:#ffe16b; font-size:1rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.client-result .feedback-explanation { margin-top:5px; color:#fff; font-size:1.08rem; line-height:1.45; font-weight:700; }
+.client-result .feedback-example { margin-top:12px; padding:10px 12px; background:#ffe16b; border:3px solid #241536; color:#241536; font-size:1rem; line-height:1.35; font-weight:800; }
 
 /* Bets grid */
 .bets-grid {
@@ -267,6 +275,7 @@ input:focus { border-color: #f59e0b; }
 }
 .client-join h2 { font-size: 1.6rem; }
 .client-join input { max-width: 280px; text-align: center; font-size: 1.4rem; letter-spacing: 5px; }
+.client-change-class { margin-top: 4px; }
 .client-join .team-input { font-size: 1rem; letter-spacing: normal; }
 
 .client-header {
@@ -862,6 +871,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
         <!-- Question -->
         <div id="questionDisplay" class="question-display card hidden">
           <div class="q-number" id="qNumber"></div>
+          <div id="qLevel"></div>
           <div class="q-sentence" id="qSentence"></div>
           <div class="q-timer" id="qTimer">30</div>
         </div>
@@ -935,7 +945,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <input type="text" id="clientTeamInput" class="team-input" placeholder="e.g. The Tigers" maxlength="20">
     </div>
     <button class="btn btn-gold btn-lg" id="clientJoinBtn" onclick="connectToHost()">🔗 Join Game</button>
-    <button type="button" class="btn btn-blue btn-sm" onclick="changeClientClass()">↔ Change class / Cambiar de clase</button>
+    <button type="button" class="btn btn-blue btn-sm client-change-class" onclick="changeClientClass()">↔ Change class / Cambiar de clase</button>
     <p id="clientError" class="red" style="font-size:0.85rem;"></p>
   </div>
 
@@ -1072,7 +1082,7 @@ const QUESTIONS = [
   {id: 17, sentence: "The teacher is rarely angry with the students.", status: "LEGAL", correction: "Correct adverb placement after 'to be'."},
   {id: 18, sentence: "She always eat breakfast in the morning.", status: "ILLEGAL", correction: "Grammar mistake ('eats' for singular subject)."},
   {id: 19, sentence: "Does she always finish her homework on time?", status: "LEGAL", correction: "Correct question."},
-  {id: 20, sentence: "They sometimes are noisy in the library.", status: "ILLEGAL", correction: "Adverb placement (should be 'are sometimes' after the verb to be)."},
+  {id: 20, sentence: "They sometimes are noisy in the library.", status: "ILLEGAL", correction: "Say: They are sometimes noisy in the library.", explanation: "With the verb be, an adverb of frequency usually comes after am, is, or are. Put sometimes after are.", example: "They are sometimes noisy in the library. / She is always early."},
 
   // Describing Things/People, Have/Has, & Wh- Questions
   {id: 21, sentence: "My best friend has short curly hair.", status: "LEGAL", correction: "Correct description with 'has'."},
@@ -1160,7 +1170,31 @@ const EXTRA_QUESTIONS = [
   {id:127, topic:'conversations', level:'B2', sentence:'Customer: I was wondering whether you could offer a refund. Clerk: Certainly, provided you have the receipt.', status:'LEGAL', correction:'Natural formal customer–clerk exchange.'},
   {id:128, topic:'clothing', level:'B1', sentence:'This jacket is slightly too loose around the shoulders, although the sleeves fit perfectly.', status:'LEGAL', correction:'Correct clothing description.'},
   {id:129, topic:'polite', level:'B2', sentence:'I am terribly sorry, but would you mind lowering your voice a little?', status:'LEGAL', correction:'Correct softening and polite expression.'},
-  {id:130, topic:'number', level:'B1', sentence:'Neither of these suggestions are practical for a class of thirty students.', status:'ILLEGAL', correction:'In formal grammar, say Neither of these suggestions is practical.'}
+  {id:130, topic:'number', level:'B1', sentence:'Neither of these suggestions are practical for a class of thirty students.', status:'ILLEGAL', correction:'In formal grammar, say Neither of these suggestions is practical.'},
+  {id:131, topic:'clothing', level:'A1', sentence:'This red sweater is soft and warm.', status:'LEGAL', correction:'This is used with one item.', explanation:'Use this with one nearby item. Sweater is singular, so this red sweater is correct.', example:'This blue T-shirt is new.'},
+  {id:132, topic:'clothing', level:'A1', sentence:'These jacket is too small for me.', status:'ILLEGAL', correction:'Say: This jacket is too small for me.', explanation:'Jacket is one item, so use this, not these.', example:'This jacket is too small. These jackets are too small.'},
+  {id:133, topic:'clothing', level:'A1', sentence:'I need a pair of black socks.', status:'LEGAL', correction:'Correct article and clothing phrase.', explanation:'Use a pair of for two matching items such as socks, shoes, or trousers.', example:'I need a pair of blue jeans.'},
+  {id:134, topic:'clothing', level:'A1', sentence:'How much is these shoes?', status:'ILLEGAL', correction:'Say: How much are these shoes?', explanation:'Shoes is plural, so use these and are together.', example:'How much are these shoes? They are $40.'},
+  {id:135, topic:'clothing', level:'A2', sentence:'Do you have this shirt in a larger size?', status:'LEGAL', correction:'Natural way to ask for another size.', explanation:'Use Do you have... in a larger size? when you want the same item in a different size.', example:'Do you have these jeans in a smaller size?'},
+  {id:136, topic:'clothing', level:'A2', sentence:'Can I try on this dress?', status:'LEGAL', correction:'Correct position of try on.', explanation:'With a noun, try on can go before the item or after it.', example:'Can I try on this dress? / Can I try this dress on?'},
+  {id:137, topic:'clothing', level:'A2', sentence:'I am looking a jacket for winter.', status:'ILLEGAL', correction:'Say: I am looking for a jacket for winter.', explanation:'Look for means search for something. The preposition for is required.', example:'I am looking for a warm coat.'},
+  {id:138, topic:'clothing', level:'A2', sentence:'The sleeves are too long, but the color is perfect.', status:'LEGAL', correction:'Correct plural and singular agreement.', explanation:'Sleeves is plural, so use are. Color is singular, so use is.', example:'The buttons are nice, but the price is high.'},
+  {id:139, topic:'clothing', level:'A2', sentence:'I would like to return these shirt.', status:'ILLEGAL', correction:'Say: I would like to return this shirt.', explanation:'Shirt is one item, so use this. Use these only with plural nouns.', example:'I would like to return this shirt. I would like to return these shirts.'},
+  {id:140, topic:'clothing', level:'A2', sentence:'Do you have any discounts on coats?', status:'LEGAL', correction:'Correct question about price.', explanation:'Use any in questions and discounts on + item when asking about a lower price.', example:'Do you have any discounts on winter clothes?'},
+  {id:141, topic:'clothing', level:'B1', sentence:'Although the trousers are expensive, they are made of high-quality wool.', status:'LEGAL', correction:'Correct plural agreement for trousers.', explanation:'Trousers is treated as a plural noun, so use are and they.', example:'These scissors are sharp, but they are useful.'},
+  {id:142, topic:'clothing', level:'B1', sentence:'The shop assistant suggested me to try a different size.', status:'ILLEGAL', correction:'Say: The shop assistant suggested that I try a different size.', explanation:'Suggest is followed by that + subject + base verb, or by a gerund. Do not use suggest + person + to verb.', example:'She suggested trying a different size.'},
+  {id:143, topic:'clothing', level:'B1', sentence:'This jacket fits me well around the shoulders.', status:'LEGAL', correction:'Natural use of fit and clothing area.', explanation:'Fit describes whether clothing is the right size or shape for someone.', example:'These shoes fit me perfectly.'},
+  {id:144, topic:'clothing', level:'B1', sentence:'I wish this coat would be more warmer.', status:'ILLEGAL', correction:'Say: I wish this coat were warmer.', explanation:'Do not use more with the comparative warmer. After I wish, were is common for an unreal present situation.', example:'I wish these shoes were more comfortable.'},
+  {id:145, topic:'clothing', level:'B1', sentence:'The dress is made from recycled plastic bottles.', status:'LEGAL', correction:'Correct passive description of material.', explanation:'Use is made from when the original material changes into a new product.', example:'This fabric is made from recycled cotton.'},
+  {id:146, topic:'clothing', level:'B1', sentence:'I need to have my suit alter before the ceremony.', status:'ILLEGAL', correction:'Say: I need to have my suit altered before the ceremony.', explanation:'Have + object + past participle means arrange for someone else to do a service.', example:'I had my trousers shortened.'},
+  {id:147, topic:'clothing', level:'B2', sentence:'Had I known the fabric would shrink, I would have bought a larger size.', status:'LEGAL', correction:'Correct third conditional inversion.', explanation:'Had I known is an inverted third conditional. It describes an unreal past condition and result.', example:'Had I known, I would have kept the receipt.'},
+  {id:148, topic:'clothing', level:'B2', sentence:'The label recommends that the garment is washed by hand.', status:'ILLEGAL', correction:'Say: The label recommends that the garment be washed by hand.', explanation:'After recommend that in formal English, use the base form or passive subjunctive: be washed.', example:'The instructions recommend that the jacket be dry-cleaned.'},
+  {id:149, topic:'clothing', level:'B2', sentence:'The boutique offers a range of garments designed to withstand extreme weather.', status:'LEGAL', correction:'Correct reduced relative clause.', explanation:'Designed to withstand describes garments. It is a shortened form of garments that are designed to withstand.', example:'We sell boots made to last.'},
+  {id:150, topic:'clothing', level:'B2', sentence:'No sooner had I put the shirt on when I noticed the stain.', status:'ILLEGAL', correction:'Say: No sooner had I put the shirt on than I noticed the stain.', explanation:'The fixed pair is no sooner...than, not no sooner...when.', example:'No sooner had she arrived than the shop closed.'},
+  {id:151, topic:'clothing', level:'B2', sentence:'Were the fabric less delicate, it could be machine-washed.', status:'LEGAL', correction:'Correct formal conditional inversion.', explanation:'Were + subject is an inverted second conditional used for a hypothetical situation.', example:'Were the coat waterproof, I would buy it.'},
+  {id:152, topic:'clothing', level:'B2', sentence:'The customer demanded that the retailer refunds the full amount immediately.', status:'ILLEGAL', correction:'Say: The customer demanded that the retailer refund the full amount immediately.', explanation:'After demand that, formal English uses the base verb refund, without -s.', example:'They demanded that the store replace the damaged item.'},
+  {id:153, topic:'clothing', level:'A1', sentence:'The blue cap is cheaper than the red cap.', status:'LEGAL', correction:'Correct comparative with than.', explanation:'Use cheaper than to compare two prices.', example:'These trainers are cheaper than those boots.'},
+  {id:154, topic:'clothing', level:'A2', sentence:'What size do you take in jackets?', status:'LEGAL', correction:'Natural question about clothing size.', explanation:'What size do you take? asks which size normally fits you.', example:'What size do you take in jeans? I take a medium.'}
 ];
 
 const EXISTING_TOPIC_MAP = {
@@ -1210,7 +1244,7 @@ let role = null, roomCode = '', peer = null, joinUrl = '';
 
 const hostState = {
   teamCount: 4, teams: {}, currentQ: 0, bets: {},
-  shuffledQuestions: [],
+  shuffledQuestions: [], questionHistory: [],
   topicFilters: TOPIC_CATALOG.map(t => t.id), levelFilters: [...LEVELS],
   timerInterval: null, timeLeft: 30, bettingOpen: false,
   gameStarted: false, roundRevealed: false,
@@ -1220,7 +1254,7 @@ const hostState = {
 
 const clientState = {
   conn: null, teamName: '', balance: 1000,
-  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, joinTimeout: null, kicked: false, joining: false
+  selectedChoice: null, betSubmitted: false, peerId: null, teamId: null, room: '', reconnectTimer: null, joinTimeout: null, reconnectAttempts: 0, kicked: false, joining: false
 };
 
 // Persist plain game data only; PeerJS connections are recreated after a reload.
@@ -1295,6 +1329,7 @@ function restoreHostView() {
   if (!q) return;
   document.getElementById('questionDisplay').classList.remove('hidden');
   document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
+  document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
   document.getElementById('nextQuestionBtn').textContent = '▶️ Next Question';
   document.getElementById('nextQuestionBtn').onclick = nextQuestion;
@@ -1328,6 +1363,24 @@ function filteredQuestionBank() {
 }
 
 function answerLabel(status) { return status === 'LEGAL' ? 'CORRECT' : 'INCORRECT'; }
+function questionFeedback(q) {
+  return {
+    explanation: q.explanation || (q.status === 'LEGAL' ? 'The sentence follows the grammar rule for this topic.' : q.correction),
+    example: q.example || ''
+  };
+}
+function questionPool() {
+  const available = filteredQuestionBank();
+  if (!available.length) return [];
+  const history = new Set(hostState.questionHistory || []);
+  let fresh = available.filter(q => !history.has(q.id));
+  if (!fresh.length) { hostState.questionHistory = []; fresh = available; }
+  return shuffleArray(fresh);
+}
+function markQuestionUsed(q) {
+  hostState.questionHistory = hostState.questionHistory || [];
+  if (!hostState.questionHistory.includes(q.id)) hostState.questionHistory.push(q.id);
+}
 
 function renderTopicPicker() {
   const topicsMarkup = TOPIC_CATALOG.map(topic => `
@@ -1562,7 +1615,8 @@ function copyJoinLink() {
 function startGame() {
   hostState.gameStarted = true;
   // Randomize only the cards matching the teacher's current mix.
-  hostState.shuffledQuestions = shuffleArray(filteredQuestionBank());
+  hostState.questionHistory = [];
+  hostState.shuffledQuestions = questionPool();
   hostState.currentQ = 0;
 
   document.getElementById('hostSetup').classList.add('hidden');
@@ -1576,19 +1630,16 @@ function startGame() {
 function nextQuestion() {
   if (hostState.bettingOpen || hostState.finalChallengeActive || hostState.winner) return;
   if (hostState.currentQ >= hostState.shuffledQuestions.length) {
-    const pool = shuffleArray(filteredQuestionBank());
+    const pool = questionPool();
     if (!pool.length) {
       alert('No questions match these topics and levels. Open Question Mix and choose another combination.');
       return;
-    }
-    const previous = hostState.shuffledQuestions[hostState.currentQ - 1];
-    if (pool.length > 1 && previous && pool[0].id === previous.id) {
-      [pool[0], pool[1]] = [pool[1], pool[0]];
     }
     hostState.shuffledQuestions.push(...pool);
   }
 
   const q = hostState.shuffledQuestions[hostState.currentQ];
+  markQuestionUsed(q);
   hostState.currentQ++;
   hostState.bets = {};
   hostState.bettingOpen = true;
@@ -1680,7 +1731,7 @@ function revealAnswer() {
     const gain = bet.amount + bonusShare;
     team.balance += gain;
     results[pid] = { correct: true, delta: +gain };
-    sendToTeam(team, { type: 'result', correct: true, delta: +gain, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: true, delta: +gain, newBalance: team.balance, answer: q.status, correction: q.correction, explanation: questionFeedback(q).explanation, example: questionFeedback(q).example });
   }
 
   for (const pid of incorrectTeams) {
@@ -1689,7 +1740,7 @@ function revealAnswer() {
     team.balance -= bet.amount;
     if (team.balance < 0) team.balance = 0;
     results[pid] = { correct: false, delta: -bet.amount };
-    sendToTeam(team, { type: 'result', correct: false, delta: -bet.amount, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: false, delta: -bet.amount, newBalance: team.balance, answer: q.status, correction: q.correction, explanation: questionFeedback(q).explanation, example: questionFeedback(q).example });
   }
 
   for (const pid of nonBettingTeams) {
@@ -1698,7 +1749,7 @@ function revealAnswer() {
     team.balance -= penalty;
     if (team.balance < 0) team.balance = 0;
     results[pid] = { correct: false, delta: -penalty, noBet: true };
-    sendToTeam(team, { type: 'result', correct: false, delta: -penalty, newBalance: team.balance, answer: q.status, correction: q.correction });
+    sendToTeam(team, { type: 'result', correct: false, delta: -penalty, newBalance: team.balance, answer: q.status, correction: q.correction, explanation: questionFeedback(q).explanation, example: questionFeedback(q).example });
   }
 
   hostState.roundResults = results;
@@ -1712,9 +1763,12 @@ function revealAnswer() {
 function renderAnswer(q) {
   const ar = document.getElementById('answerReveal');
   ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
+  const feedback = questionFeedback(q);
   ar.innerHTML = `
     <div class="verdict ${q.status === 'LEGAL' ? 'green' : 'red'}">${q.status === 'LEGAL' ? '✅ CORRECT' : '❌ INCORRECT'}</div>
     <div class="correction">${escHtml(q.correction)}</div>
+    <div class="answer-explanation"><strong>WHY?</strong> ${escHtml(feedback.explanation)}</div>
+    ${feedback.example ? `<div class="answer-example"><strong>EXAMPLE:</strong> ${escHtml(feedback.example)}</div>` : ''}
   `;
 
 }
@@ -1932,6 +1986,7 @@ function connectToHost() {
   clientState.balance = saved ? saved.balance : 1000;
   clientState.kicked = false;
   clientState.joining = true;
+  clientState.reconnectAttempts = 0;
   saveClientSession();
   clearTimeout(clientState.reconnectTimer); clearTimeout(clientState.joinTimeout);
   if (peer) peer.destroy();
@@ -1944,13 +1999,23 @@ function connectToHost() {
     scheduleReconnect();
   });
   clientState.joinTimeout = setTimeout(() => {
-    if (clientState.joining) setJoinUi('Could not connect yet. Check the code and try again.', false);
-  }, 9000);
+    if (!clientState.joining) return;
+    // Stop the failed attempt so the student can replace the code immediately.
+    // Leaving the peer alive here kept reconnecting to the old room and made the
+    // join screen look stuck after a bad or expired code.
+    stopClientConnection();
+    setJoinUi('Room not found or unavailable. Check the 4-digit code and try again.', false);
+    const roomInput = document.getElementById('clientRoomInput');
+    if (roomInput) { roomInput.focus(); roomInput.select(); }
+  }, 6500);
 }
 
 function scheduleReconnect() {
   clearTimeout(clientState.reconnectTimer);
-  if (!clientState.kicked) clientState.reconnectTimer = setTimeout(reconnectClient, 2000);
+  if (!clientState.kicked) {
+    const delay = Math.min(15000, 2000 * Math.pow(1.6, clientState.reconnectAttempts++));
+    clientState.reconnectTimer = setTimeout(reconnectClient, delay);
+  }
 }
 function reconnectClient() {
   if (clientState.kicked || !peer || peer.destroyed) return;
@@ -1960,6 +2025,7 @@ function reconnectClient() {
   conn.on('open', () => {
     if (clientState.conn !== conn || clientState.kicked) { conn.close(); return; }
     clearTimeout(clientState.reconnectTimer);
+    clientState.reconnectAttempts = 0;
     conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
   });
   conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
@@ -1968,7 +2034,15 @@ function reconnectClient() {
     document.getElementById('clientStatusText').textContent = 'Reconnecting to your class…';
     scheduleReconnect();
   });
-  conn.on('error', () => { if (clientState.conn === conn) scheduleReconnect(); });
+  conn.on('error', (err) => {
+    if (clientState.conn !== conn) return;
+    if (err && err.type === 'peer-unavailable') {
+      stopClientConnection();
+      setJoinUi('Room not found. Check the 4-digit code and try again.', false);
+      return;
+    }
+    scheduleReconnect();
+  });
   clearTimeout(clientState.reconnectTimer);
   clientState.reconnectTimer = setTimeout(() => {
     if (clientState.conn !== conn || clientState.kicked) return;
@@ -2064,24 +2138,17 @@ function showClientBetSubmitted() { showClientPanel('clientBetSubmitted'); }
 function showClientResult(data) {
   showClientPanel('clientResult');
   const el = document.getElementById('clientResult');
-  if (data.correct === null || (data.correct === false && data.delta < 0 && !clientState.selectedChoice)) {
-    el.innerHTML = `<div class="verdict red">⏱️ NO BET PENALTY</div>
-      <div class="change red">-\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
-      <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
-  } else if (data.correct) {
-    el.innerHTML = `<div class="verdict green">✅ CORRECT!</div>
-      <div class="change green">+\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
-      <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
-  } else {
-    el.innerHTML = `<div class="verdict red">❌ WRONG!</div>
-      <div class="change red">-\$${Math.abs(data.delta).toLocaleString()}</div>
-      <p style="color:#94a3b8;margin-top:8px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
-      <p style="color:#64748b;font-size:0.8rem;margin-top:4px;">${escHtml(data.correction)}</p>`;
-  }
+  const noBet = data.correct === null || (data.correct === false && data.delta < 0 && !clientState.selectedChoice);
+  const verdict = noBet ? '⏱️ NO BET PENALTY' : data.correct ? '✅ CORRECT!' : '❌ INCORRECT!';
+  const tone = noBet || !data.correct ? 'red' : 'green';
+  const sign = data.delta >= 0 ? '+' : '-';
+  el.innerHTML = `<div class="verdict ${tone}">${verdict}</div>
+    <div class="change ${tone}">${sign}$${Math.abs(data.delta).toLocaleString()}</div>
+    <p style="color:#94a3b8;margin-top:12px;">Answer: <strong class="${data.answer==='LEGAL'?'green':'red'}">${answerLabel(data.answer)}</strong></p>
+    <div class="feedback-title">Why?</div>
+    <div class="feedback-explanation">${escHtml(data.explanation || data.correction || 'Review the grammar rule shown by the teacher.')}</div>
+    ${data.example ? `<div class="feedback-example"><strong>Example:</strong> ${escHtml(data.example)}</div>` : ''}`;
 }
-
 function selectChoice(choice) {
   clientState.selectedChoice = choice;
   document.getElementById('legalBtn').classList.toggle('selected', choice === 'LEGAL');

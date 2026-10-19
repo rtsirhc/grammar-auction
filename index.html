@@ -864,7 +864,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <p>Una laptop, equipos en el salón y marcador manual. Sin celulares ni conexión.</p>
     </div>
   </div>
-  <div class="offline-download"><a class="btn btn-blue" href="offline.html" download="Grammar-Rush-Offline.html">↓ Descargar juego offline</a><p id="offlineReady">Después de abrirlo puedes jugar sin internet. Descarga una copia para abrirla cualquier día.</p></div>
+  <div class="offline-download"><a class="btn btn-blue" href="offline.html" download="Grammar-Rush-Offline.html">↓ Descargar juego offline</a><p id="offlineReady">Después de abrirlo puedes jugar sin internet. Descarga una copia para abrirla cualquier día.</p></div><p><a href="teacher-bakery-guide.html" target="_blank">📘 Guía del maestro · Bakery vocabulary</a></p>
 </div>
 
 <!-- HOST SCREEN -->
@@ -1178,6 +1178,7 @@ const TOPIC_CATALOG = [
   { id: 'polite', label: 'Polite expressions' },
   { id: 'cafe', label: 'In a café' },
   { id: 'clothing', label: 'Clothing store' },
+  { id: 'bakery', label: 'Bakery vocabulary' },
   { id: 'number', label: 'Singular & plural' },
   { id: 'articles', label: 'Articles: a / an' },
   { id: 'doDoes', label: 'Questions with do / does' },
@@ -1247,6 +1248,26 @@ const EXTRA_QUESTIONS = [
   {id:153, topic:'clothing', level:'A1', sentence:'The blue cap is cheaper than the red cap.', status:'LEGAL', correction:'Correct comparative with than.', explanation:'Use cheaper than to compare two prices.', example:'These trainers are cheaper than those boots.'},
   {id:154, topic:'clothing', level:'A2', sentence:'What size do you take in jackets?', status:'LEGAL', correction:'Natural question about clothing size.', explanation:'What size do you take? asks which size normally fits you.', example:'What size do you take in jeans? I take a medium.'}
 ];
+
+const BAKERY_QUESTIONS = [
+  {id:155, topic:'bakery', level:'A1', sentence:'I would like two bread rolls, please.', status:'LEGAL', correction:'Correct bakery vocabulary and polite order.', explanation:'A bread roll is a small round piece of bread. Use two because rolls is plural.', example:'I would like two bread rolls, please.'},
+  {id:156, topic:'bakery', level:'A1', sentence:'Can I have a slice of cake, please?', status:'LEGAL', correction:'Correct way to order a piece of cake.', explanation:'A slice is a thin piece cut from a cake or loaf.', example:'Can I have a slice of chocolate cake, please?'},
+  {id:157, topic:'bakery', level:'A1', sentence:'I want three loaf of bread.', status:'ILLEGAL', correction:'Say: I want three loaves of bread.', explanation:'Loaf is singular. The irregular plural is loaves.', example:'The baker made three loaves of whole-wheat bread.'},
+  {id:158, topic:'bakery', level:'A1', sentence:'These cookies are fresh from the oven.', status:'LEGAL', correction:'Correct plural bakery vocabulary.', explanation:'Cookies is plural, so these and are agree with it.', example:'These muffins are fresh from the oven.'},
+  {id:159, topic:'bakery', level:'A2', sentence:'Do you have any wholemeal bread?', status:'LEGAL', correction:'Natural question about a type of bread.', explanation:'Wholemeal bread is made with flour that includes the whole grain.', example:'Do you have any gluten-free bread?'},
+  {id:160, topic:'bakery', level:'A2', sentence:'How much are this croissant?', status:'ILLEGAL', correction:'Say: How much is this croissant?', explanation:'Croissant is one item, so use this and is.', example:'How much is this chocolate croissant?'},
+  {id:161, topic:'bakery', level:'A2', sentence:'The baguettes are still warm.', status:'LEGAL', correction:'Correct vocabulary and plural agreement.', explanation:'A baguette is a long, thin loaf of French bread. Baguettes is plural, so use are.', example:'The baguettes are on the cooling rack.'},
+  {id:162, topic:'bakery', level:'A2', sentence:'Could you pack the pastries separately, please?', status:'LEGAL', correction:'Correct polite bakery request.', explanation:'Could you + base verb is a polite way to ask the bakery worker to do something.', example:'Could you wrap the cupcakes separately, please?'},
+  {id:163, topic:'bakery', level:'B1', sentence:'The sourdough has a chewy crust and a light, airy crumb.', status:'LEGAL', correction:'Accurate description of sourdough bread.', explanation:'Crust is the outside of bread; crumb is the soft inside. Chewy and airy describe their texture.', example:'This loaf has a crisp crust and a soft crumb.'},
+  {id:164, topic:'bakery', level:'B1', sentence:'The baker recommended me trying the rye bread.', status:'ILLEGAL', correction:'Say: The baker recommended trying the rye bread.', explanation:'Recommend is followed by a gerund, or by that + subject + base verb. Do not use recommend + person + gerund.', example:'She recommended trying the cinnamon rolls.'},
+  {id:165, topic:'bakery', level:'B1', sentence:'This pastry is filled with raspberry jam and topped with icing.', status:'LEGAL', correction:'Correct passive description of a pastry.', explanation:'Filled with describes the inside, while topped with describes what is placed on top.', example:'The doughnut is filled with custard and topped with sugar.'},
+  {id:166, topic:'bakery', level:'B1', sentence:'There is fewer cupcakes in the display case today.', status:'ILLEGAL', correction:'Say: There are fewer cupcakes in the display case today.', explanation:'Cupcakes is a plural countable noun, so use there are and fewer.', example:'There are fewer muffins because the shop is closing soon.'},
+  {id:167, topic:'bakery', level:'B2', sentence:'Had the dough been kneaded longer, the bread would have risen more evenly.', status:'LEGAL', correction:'Correct inverted third conditional about baking.', explanation:'Had + subject + past participle is a formal inversion of If the dough had been kneaded.', example:'Had the oven been hotter, the crust would have browned sooner.'},
+  {id:168, topic:'bakery', level:'B2', sentence:'The recipe calls for that the butter is softened before mixing.', status:'ILLEGAL', correction:'Say: The recipe calls for the butter to be softened before mixing.', explanation:'Call for is followed by a noun and to-infinitive, not that + passive clause.', example:'The recipe calls for the eggs to be beaten lightly.'},
+  {id:169, topic:'bakery', level:'B2', sentence:'The patisserie specializes in viennoiserie, including laminated pastries such as croissants and pain au chocolat.', status:'LEGAL', correction:'Correct advanced bakery vocabulary and sentence structure.', explanation:'Viennoiserie refers to rich, layered pastries made with laminated dough.', example:'The patisserie specializes in handmade viennoiserie.'},
+  {id:170, topic:'bakery', level:'B2', sentence:'No sooner had the tray left the oven when customers asked for the buns.', status:'ILLEGAL', correction:'Say: No sooner had the tray left the oven than customers asked for the buns.', explanation:'The fixed pair is no sooner...than, even when describing a quick bakery sale.', example:'No sooner had the bread cooled than it sold out.'}
+];
+QUESTIONS.push(...BAKERY_QUESTIONS);
 
 const EXISTING_TOPIC_MAP = {
   routines: [1,20], descriptions: [21,30], placeTime: [31,40], thereIs: [41,50]

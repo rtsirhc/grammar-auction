@@ -840,6 +840,8 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
 .offline-mode .answer-reveal.show {max-height:260px;}
 .offline-mode .answer-reveal .answer-explanation, .offline-mode .answer-reveal .answer-example {font-size:1.1rem;}
 .offline-mode .role-cards {gap:12px;}
+.client-result .feedback-explanation {color:var(--park-ink);}
+.client-result .feedback-title {color:var(--park-red);}
 </style>
 </head>
 <body>
@@ -864,7 +866,7 @@ body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:
       <p>Una laptop, equipos en el salón y marcador manual. Sin celulares ni conexión.</p>
     </div>
   </div>
-  <div class="offline-download"><a class="btn btn-blue" href="offline.html" download="Grammar-Rush-Offline.html">↓ Descargar juego offline</a><p id="offlineReady">Después de abrirlo puedes jugar sin internet. Descarga una copia para abrirla cualquier día.</p></div><p><a href="teacher-bakery-guide.html" target="_blank">📘 Guía del maestro · Bakery vocabulary</a></p>
+  <div class="offline-download"><a class="btn btn-gold" href="grammar-rush-local.zip" download>📡 Descargar multijugador local</a> <a href="LOCAL.md" target="_blank">Cómo usarlo</a> <a class="btn btn-blue" href="offline.html" download="Grammar-Rush-Offline.html">↓ Descargar juego offline</a><p id="offlineReady">Después de abrirlo puedes jugar sin internet. Descarga una copia para abrirla cualquier día.</p></div><p><a href="teacher-bakery-guide.html" target="_blank">📘 Guía del maestro · Bakery vocabulary</a></p>
 </div>
 
 <!-- HOST SCREEN -->
@@ -1331,7 +1333,7 @@ const clientState = {
 };
 
 // Persist plain game data only; PeerJS connections are recreated after a reload.
-const STORAGE_PREFIX = 'grammar-auction:v1:';
+const STORAGE_PREFIX = window.GRAMMAR_RUSH_LOCAL ? 'grammar-auction:lan:v1:' : 'grammar-auction:v1:';
 function readSaved(key) {
   try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)); } catch (_) { return null; }
 }
@@ -1567,7 +1569,7 @@ function clearOfflineBet(id) {
   if (!offlineMode || !hostState.bettingOpen) return;
   delete hostState.bets[id]; saveHostSession(); updateBetsDisplay();
 }
-if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol !== 'file:') {
+if (!window.GRAMMAR_RUSH_LOCAL && typeof navigator !== 'undefined' && 'serviceWorker' in navigator && window.location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').then(() => navigator.serviceWorker.ready).then(() => {
     const status = document.getElementById('offlineReady');
     if (status) status.textContent = '✓ Juego guardado para usar sin internet. También puedes descargar una copia.';
@@ -1613,15 +1615,19 @@ function initHost(offline = false) {
   document.getElementById('hostScreen').classList.remove('hidden');
   document.getElementById('hostRoomCode').textContent = roomCode;
   renderTopicPicker();
+  if (window.GRAMMAR_RUSH_LOCAL) {
+    document.querySelector('.host-header h1').textContent = '⚡ Grammar Rush · RED LOCAL';
+    document.getElementById('qrCode').textContent = 'Usa en los celulares la dirección Alumnos que muestra la ventana del servidor. Todos deben conectarse al mismo Wi-Fi o hotspot.';
+  }
 
   document.body.classList.toggle('offline-mode', offlineMode);
   document.getElementById('offlineSetup').classList.toggle('hidden', !offlineMode);
   document.getElementById('onlineSetup').classList.toggle('hidden', offlineMode);
   if (offlineMode) document.getElementById('hostRoomCode').textContent = 'OFFLINE';
   else {
-    joinUrl = `${window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
+    joinUrl = `${window.GRAMMAR_RUSH_LOCAL_ORIGIN || window.location.origin}${window.location.pathname}?role=client&room=${roomCode}`;
     document.getElementById('joinLinkDisplay').textContent = joinUrl;
-    loadOnlineLibrary('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'QRCode').then(() => {
+    if (!window.GRAMMAR_RUSH_LOCAL) loadOnlineLibrary('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'QRCode').then(() => {
       new QRCode(document.getElementById('qrCode'), {text: joinUrl, width:180, height:180});
     }).catch(() => { document.getElementById('qrCode').textContent = 'Use the student link below.'; });
   }
@@ -1669,6 +1675,9 @@ async function connectHostPeer(resuming) {
   setupHostListeners();
 }
 function setupHostListeners() {
+  peer.on('reconnected', () => {
+    for (const [id, team] of Object.entries(hostState.teams)) syncTeam(team, id);
+  });
   peer.on('connection', (conn) => {
     conn.on('data', (data) => handleClientMessage(conn, data));
     conn.on('close', () => {
@@ -2139,6 +2148,10 @@ function setJoinUi(message, busy) {
 }
 function handleClientOffline() {
   if (role !== 'client') return;
+  if (window.GRAMMAR_RUSH_LOCAL) {
+    // A hotspot can have LAN access while the OS reports no internet.
+    clientState.offline = false; scheduleReconnect(); return;
+  }
   clientState.offline = true;
   clearTimeout(clientState.reconnectTimer);
   const status = document.getElementById('clientStatusText');
@@ -2150,7 +2163,7 @@ function handleClientOnline() {
   clientState.offline = false;
   if (!clientState.kicked && !clientState.connectionPaused && clientState.room) {
     const status = document.getElementById('clientStatusText');
-    if (status && !document.getElementById('clientGame').classList.contains('hidden')) status.textContent = '📡 Internet restored. Reconnecting…';
+    if (status && !document.getElementById('clientGame').classList.contains('hidden')) status.textContent = window.GRAMMAR_RUSH_LOCAL ? '📡 Reconectando con la laptop…' : '📡 Internet restored. Reconnecting…';
     if (peer && peer.disconnected && !peer.destroyed) peer.reconnect();
     scheduleReconnect();
   }
@@ -2195,6 +2208,11 @@ function changeClientClass() {
   document.getElementById('clientRoomInput').focus();
 }
 
+function createTeamId() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
 async function connectToHost() {
   const room = document.getElementById('clientRoomInput').value.trim();
   const name = document.getElementById('clientTeamInput').value.trim();
@@ -2204,7 +2222,7 @@ async function connectToHost() {
   setJoinUi('Connecting to the teacher…', true);
   const saved = readSaved('client:' + room);
   clientState.room = room;
-  clientState.teamId = saved ? saved.teamId : crypto.randomUUID();
+  clientState.teamId = saved ? saved.teamId : createTeamId();
   clientState.teamName = saved ? saved.teamName : name;
   clientState.balance = saved ? saved.balance : 1000;
   clientState.kicked = false;
@@ -2221,6 +2239,10 @@ async function connectToHost() {
   if (clientState.kicked || clientState.connectionPaused) return;
   const connectingPeer = peer = new Peer(undefined, peerOptions());
   connectingPeer.on('open', (id) => { if (peer !== connectingPeer) return; clientState.peerId = id; reconnectClient(); });
+  connectingPeer.on('reconnected', () => {
+    if (peer === connectingPeer && clientState.conn && clientState.conn.open && !clientState.kicked)
+      clientState.conn.send({type:'join', teamName:clientState.teamName, teamId:clientState.teamId});
+  });
   connectingPeer.on('disconnected', () => { if (peer === connectingPeer && !clientState.kicked && !clientState.connectionPaused && !clientState.offline && !connectingPeer.destroyed) connectingPeer.reconnect(); });
   connectingPeer.on('error', () => {
     if (peer !== connectingPeer) return;
@@ -2229,13 +2251,9 @@ async function connectToHost() {
   });
   clientState.joinTimeout = setTimeout(() => {
     if (!clientState.joining) return;
-    // A data channel can report open while its first packet is stalled on a
-    // slow/carrier network. Close only that stale channel and retry; keep the
-    // anonymous Peer and the saved team identity alive.
-    setJoinUi('La red está tardando en responder… reintentando la conexión.', true);
-    const stalledConn = clientState.conn;
-    if (stalledConn) stalledConn.close();
-    clientState.conn = null;
+    setJoinUi(window.GRAMMAR_RUSH_LOCAL
+      ? 'No llega respuesta del maestro. Comprueba que todos estén en el mismo Wi-Fi y que el servidor esté abierto.'
+      : 'No se ha podido establecer la conexión entre dispositivos. No es una medición de velocidad. Puedes usar el modo de red local.', false);
     scheduleReconnect();
   }, 8000);
 }
@@ -2249,13 +2267,26 @@ function scheduleReconnect() {
 }
 function reconnectClient() {
   if (clientState.kicked || clientState.connectionPaused || clientState.offline || !peer || peer.destroyed) return;
-  if (clientState.conn && clientState.conn.open) return;
+  if (clientState.conn && clientState.conn.open) {
+    // An open channel is not an acknowledged join. Retry the small handshake
+    // rather than destroy a connection which ICE may still be establishing.
+    if (clientState.joining) {
+      clientState.conn.send({type:'join', teamName:clientState.teamName, teamId:clientState.teamId});
+      scheduleReconnect();
+    }
+    return;
+  }
+  if (peer.disconnected) { peer.reconnect(); scheduleReconnect(); return; }
+  const previousConn = clientState.conn;
+  clientState.conn = null;
+  if (previousConn) previousConn.close();
   const conn = peer.connect('ESL-AUCTION-' + clientState.room, {reliable: true});
   clientState.conn = conn;
   conn.on('open', () => {
     if (clientState.conn !== conn || clientState.kicked) { conn.close(); return; }
     clearTimeout(clientState.reconnectTimer);
     conn.send({type: 'join', teamName: clientState.teamName, teamId: clientState.teamId});
+    if (clientState.joining) scheduleReconnect();
   });
   conn.on('data', data => { if (clientState.conn === conn) handleHostMessage(data); });
   conn.on('close', () => {
@@ -2275,7 +2306,7 @@ function reconnectClient() {
         // A signaling hiccup is not proof that the room is gone. Keep trying at
         // a capped interval; the student can cancel with Change class.
         clientState.reconnectAttempts = 0;
-        setJoinUi('La red está tardando en responder… reintentando la conexión.', true);
+        setJoinUi('No se ha localizado al maestro. Revisa el código; seguimos reintentando.', false);
         scheduleReconnect();
       } else {
         const status = document.getElementById('clientStatusText');
@@ -2290,7 +2321,7 @@ function reconnectClient() {
   clientState.reconnectTimer = setTimeout(() => {
     if (clientState.conn !== conn || clientState.kicked) return;
     if (!conn.open) { conn.close(); scheduleReconnect(); }
-  }, 8000);
+  }, 25000);
 }
 
 function handleHostMessage(data) {
@@ -2318,6 +2349,7 @@ function handleHostMessage(data) {
       clientState.connectionPaused = false;
       clientState.reconnectAttempts = 0;
       clearTimeout(clientState.joinTimeout);
+      clearTimeout(clientState.reconnectTimer);
       clientState.balance = data.balance;
       document.getElementById('clientJoin').classList.add('hidden');
       document.getElementById('clientGame').classList.remove('hidden');

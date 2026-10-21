@@ -1,4 +1,4 @@
-const CACHE = 'grammar-rush-offline-v1';
+const CACHE = 'grammar-rush-offline-v2';
 const ASSETS = ['./', './index.html', './grammar-auction.html', './offline.html'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));

@@ -1048,6 +1048,7 @@ let audioCtx;
 function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
 
 function playStartSound() {
+  if (window.HALLOWEEN_QUESTIONS) { spookyTone('start'); return; }
   const ctx = ensureAudio();
   [0, 0.15, 0.3].forEach((delay, i) => {
     const osc = ctx.createOscillator();
@@ -1063,6 +1064,7 @@ function playStartSound() {
 }
 
 function playBuzzerSound() {
+  if (window.HALLOWEEN_QUESTIONS) { spookyTone('buzzer'); return; }
   const ctx = ensureAudio();
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
@@ -1086,6 +1088,7 @@ function playBuzzerSound() {
 }
 
 function playCorrectSound() {
+  if (window.HALLOWEEN_QUESTIONS) { spookyTone('correct'); return; }
   const ctx = ensureAudio();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -1099,6 +1102,7 @@ function playCorrectSound() {
 }
 
 function playWrongSound() {
+  if (window.HALLOWEEN_QUESTIONS) { spookyTone('wrong'); return; }
   const ctx = ensureAudio();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -1176,6 +1180,7 @@ const QUESTIONS = [
 
 // The teacher can mix these themes and levels before or during a game.
 const TOPIC_CATALOG = [
+  ...(window.HALLOWEEN_QUESTIONS ? [{id:'halloween',label:'🎃 Halloween · Easy vocabulary'}] : []),
   { id: 'greetings', label: 'Greetings & introductions' },
   { id: 'polite', label: 'Polite expressions' },
   { id: 'cafe', label: 'In a café' },
@@ -1269,7 +1274,7 @@ const BAKERY_QUESTIONS = [
   {id:169, topic:'bakery', level:'B2', sentence:'The patisserie specializes in viennoiserie, including laminated pastries such as croissants and pain au chocolat.', status:'LEGAL', correction:'Correct advanced bakery vocabulary and sentence structure.', explanation:'Viennoiserie refers to rich, layered pastries made with laminated dough.', example:'The patisserie specializes in handmade viennoiserie.'},
   {id:170, topic:'bakery', level:'B2', sentence:'No sooner had the tray left the oven when customers asked for the buns.', status:'ILLEGAL', correction:'Say: No sooner had the tray left the oven than customers asked for the buns.', explanation:'The fixed pair is no sooner...than, even when describing a quick bakery sale.', example:'No sooner had the bread cooled than it sold out.'}
 ];
-QUESTIONS.push(...BAKERY_QUESTIONS);
+
 
 const EXISTING_TOPIC_MAP = {
   routines: [1,20], descriptions: [21,30], placeTime: [31,40], thereIs: [41,50]
@@ -1281,7 +1286,7 @@ QUESTIONS.forEach(q => {
   if (!q.topic) q.topic = q.id <= 20 ? 'routines' : q.id <= 30 ? 'descriptions' : q.id <= 40 ? 'placeTime' : 'thereIs';
   q.level = q.id % 5 === 0 ? 'A2' : 'A1';
 });
-QUESTIONS.push(...EXTRA_QUESTIONS);
+QUESTIONS.push(...EXTRA_QUESTIONS, ...BAKERY_QUESTIONS, ...(window.HALLOWEEN_QUESTIONS || []));
 
 // Helper: Shuffle Array (Fisher-Yates)
 function shuffleArray(arr) {
@@ -1412,6 +1417,7 @@ function restoreHostView() {
   document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
+  renderQuestionArt(q);
   document.getElementById('nextQuestionBtn').textContent = '▶️ Next Question';
   document.getElementById('nextQuestionBtn').onclick = nextQuestion;
   document.getElementById('nextQuestionBtn').disabled = hostState.bettingOpen;
@@ -1609,14 +1615,17 @@ function initHost(offline = false) {
     Object.assign(hostState, saved.state);
     hostState.teams = saved.teams;
   }
-  roomCode = saved ? saved.roomCode : (/^\d{4}$/.test(requestedRoom || '') ? requestedRoom : String(Math.floor(1000 + Math.random() * 9000)));
+  if (!saved && window.HALLOWEEN_QUESTIONS) { hostState.topicFilters = ['halloween']; hostState.levelFilters = ['A1','A2']; }
+  roomCode = offlineMode ? 'offline' : saved ? saved.roomCode : (/^\d{4}$/.test(requestedRoom || '') ? requestedRoom : String(Math.floor(1000 + Math.random() * 9000)));
   writeSaved('active', {role: offlineMode ? 'offline' : 'host', room: roomCode});
   document.getElementById('roleSelect').classList.add('hidden');
   document.getElementById('hostScreen').classList.remove('hidden');
   document.getElementById('hostRoomCode').textContent = roomCode;
   renderTopicPicker();
   if (window.GRAMMAR_RUSH_LOCAL) {
-    document.querySelector('.host-header h1').textContent = '⚡ Grammar Rush · RED LOCAL';
+    document.querySelector('.host-header h1').textContent = '🎃 Grammar Rush · LOCAL';
+    document.querySelector('#onlineSetup h3').textContent = '📡 Conecta tu equipo';
+    if (window.HALLOWEEN_QUESTIONS) document.getElementById('topicPickerSetup').insertAdjacentHTML('beforebegin', '<button class="btn btn-gold" onclick="halloweenMix()">🎃 Jugar Halloween · A1 + A2</button>');
     document.getElementById('qrCode').textContent = 'Usa en los celulares la dirección Alumnos que muestra la ventana del servidor. Todos deben conectarse al mismo Wi-Fi o hotspot.';
   }
 
@@ -1832,6 +1841,7 @@ function nextQuestion() {
   document.getElementById('qNumber').textContent = `Question ${hostState.currentQ}`;
   document.getElementById('qLevel').innerHTML = `<span class="level-pill level-${q.level}">LEVEL ${q.level}</span>`;
   document.getElementById('qSentence').textContent = `"${q.sentence}"`;
+  renderQuestionArt(q);
   document.getElementById('qTimer').textContent = '30';
   document.getElementById('qTimer').classList.remove('urgent');
   document.getElementById('nextQuestionBtn').disabled = true;
@@ -1964,6 +1974,14 @@ function revealAnswer() {
 
 }
 
+function renderQuestionArt(q) {
+  let art = document.getElementById('questionArt');
+  if (!art && window.HALLOWEEN_QUESTIONS) {
+    art = document.createElement('div'); art.id = 'questionArt'; art.className = 'halloween-art';
+    document.getElementById('qSentence').before(art);
+  }
+  if (art) { art.innerHTML = q.art && window.HALLOWEEN_QUESTIONS ? spookyArt(q.art) : ''; art.hidden = !q.art; }
+}
 function renderAnswer(q) {
   const ar = document.getElementById('answerReveal');
   ar.className = `answer-reveal card show ${q.status === 'LEGAL' ? 'legal-answer' : 'illegal-answer'}`;
@@ -2372,6 +2390,7 @@ function handleHostMessage(data) {
     case 'betConfirmed':
       clientState.betSubmitted = true; clientState.selectedChoice = data.choice || clientState.selectedChoice; showClientBetSubmitted(); break;
     case 'result':
+      document.getElementById('clientStatusText').textContent = '✓ Round complete · Waiting for the next question';
       clientState.balance = data.newBalance;
       document.getElementById('clientBalanceDisplay').textContent = clientState.balance.toLocaleString();
       showClientResult(data); break;

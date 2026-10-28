@@ -37,3 +37,13 @@ Una página web no puede activar el adaptador Wi-Fi: este paso se realiza en el 
 ## Conexión online
 
 El sitio público continúa usando PeerJS/WebRTC. Su negociación puede fallar por rutas o restricciones de red aun con buen ancho de banda. La app ya no llama «red lenta» a ese fallo, permite reintentar sin borrar el equipo y da más tiempo a establecer el canal. Para jugar sin depender de esas rutas usa esta versión local.
+
+## Edición Halloween (octubre 2026)
+
+El paquete local incluye una edición Halloween: ilustraciones SVG, animaciones suaves y efectos musicales sintetizados en la laptop. No descarga imágenes, fuentes ni audios.
+
+- **Vocabulario:** abre las 16 tarjetas inglés/español desde la barra superior.
+- **Nueva clase:** empieza con Halloween A1 + A2 (32 preguntas). Si recuperas una clase anterior, pulsa **Jugar Halloween · A1 + A2** en la configuración, o selecciona Halloween en **Question Mix** durante la partida.
+- **Sonido:** empieza apagado. Pulsa **Sonido: OFF** para activarlo en la laptop del maestro; el botón permite silenciarlo en cualquier momento. El navegador necesita esa interacción para habilitar audio.
+- **Animación:** respeta la preferencia del sistema «reducir movimiento».
+- El modo público conserva su aspecto habitual. Ejecuta el servidor incluido para usar la edición Halloween multijugador.

@@ -77,7 +77,8 @@ function createServer() {
     const addresses = Object.values(os.networkInterfaces()).flat().filter(info => info && info.family === 'IPv4' && !info.internal).map(info => info.address);
     const address = addresses.find(ip => ip.startsWith('192.168.')) || addresses.find(ip => ip.startsWith('10.')) || addresses[0] || 'localhost';
     const shareOrigin = /^localhost:|^127\.0\.0\.1:/.test(req.headers.host || '') ? 'http://' + address + ':' + server.address().port : 'http://' + req.headers.host;
-    html = html.replace('<script>', '<script>\nwindow.GRAMMAR_RUSH_LOCAL = true; window.GRAMMAR_RUSH_LOCAL_ORIGIN = ' + JSON.stringify(shareOrigin) + ';\n' + fs.readFileSync(path.join(__dirname,'transport.js'),'utf8'));
+    html = html.replace('</style>', fs.readFileSync(path.join(__dirname,'halloween.css'),'utf8') + '</style>');
+    html = html.replace('<script>', '<script>\nwindow.GRAMMAR_RUSH_LOCAL = true; window.GRAMMAR_RUSH_LOCAL_ORIGIN = ' + JSON.stringify(shareOrigin) + ';\n' + fs.readFileSync(path.join(__dirname,'transport.js'),'utf8') + '\n' + fs.readFileSync(path.join(__dirname,'halloween.js'),'utf8'));
     res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'}); res.end(req.method === 'HEAD' ? '' : html);
   });
   const heartbeat = setInterval(() => {

@@ -1,0 +1,80 @@
+/* Haunted classroom: ink, parchment, pumpkin enamel and acid-green status lights. */
+body.halloween{--park-ink:#21182e;--park-red:#c34320;--park-blue:#6645ad;--park-purple:#6345a0;--park-yellow:#ffac45;--park-green:#b8da7b;--park-shadow:4px 5px 0 #0a0912;background:#14111e!important;color:#f6ebd2!important;background-image:radial-gradient(ellipse at 75% 0,#392749 0,transparent 50%)!important;}
+body.halloween::before,body.halloween::after{display:none!important}
+.halloween #roleSelect{position:relative;z-index:1;min-height:calc(100vh - 46px);}
+.halloween #roleSelect::before{content:'✦  ENTER IF YOU DARE  ✦';color:#bcdf84;letter-spacing:.25em;font-size:.8rem}
+.halloween #roleSelect h1{color:#ffac45!important;text-shadow:4px 4px 0 #6a382c!important;transform:rotate(-2deg);font-size:clamp(3.6rem,7vw,6.8rem)!important}
+.halloween #roleSelect h1::after{content:'HALLOWEEN NIGHT'!important;color:#c8abec!important;text-shadow:none!important;}
+.halloween #roleSelect .subtitle,.halloween .offline-download,.halloween #roleSelect>p{color:#eadcc8!important}
+.halloween a{color:#ffd39a}
+.halloween .role-card{background:#f8edcf!important;border:2px solid #ffa349!important;box-shadow:6px 6px 0 #724532!important;transform:none!important}
+.halloween .role-card:hover{transform:translateY(-5px)!important;box-shadow:6px 11px 0 #724532!important}
+.halloween .host-header{background:#241b34!important;border-bottom:3px solid #ffac45!important;color:#ffac45!important}
+.halloween .host-header h1{color:#ffac45!important;text-shadow:none!important;font-size:1.35rem!important}
+.halloween .host-header h1::after{content:' · HALLOWEEN NIGHT'!important;color:#bf98ee!important}
+.halloween .room-badge{background:#ffac45!important;color:#21182e!important;border-radius:3px!important}
+.halloween .card,.halloween .betting-panel,.halloween .client-result,.halloween .client-waiting,.halloween .bet-submitted-msg{background:#f7edda!important;border:2px solid #8b65b3!important;border-radius:5px!important;box-shadow:4px 5px 0 #08070d!important;color:#21182e!important}
+.halloween .question-display{position:relative;background:#282038!important;border-color:#bc95ed!important;color:#f9efd8!important;min-height:185px}
+.halloween .q-sentence{color:#fff0ce!important;text-shadow:none!important;font-size:clamp(1.4rem,2.6vw,2.3rem)!important;line-height:1.2}
+.halloween .q-number{color:#bfe77c!important;text-shadow:none!important;letter-spacing:.15em}
+.halloween .q-timer{color:#ffac45!important;text-shadow:none!important}
+.halloween .leaderboard-panel{background:#251d34!important;border:2px solid #8e6aaf!important;border-radius:4px!important}
+.halloween .leaderboard-panel h3{color:#e4ccf5!important}
+.halloween .lb-row{background:#3c2c4c!important;color:#fff1d4!important;border:1px solid #705580!important}
+.halloween .lb-row:first-child{background:#ffac45!important;color:#21182e!important}
+.halloween .lb-balance{color:inherit!important}
+.halloween .host-controls{background:#241b34!important;border-color:#785293!important}
+.halloween .btn{border-radius:4px!important;border-width:2px!important;box-shadow:3px 4px 0 #110b1b!important;transition:transform .15s,filter .15s!important}
+.halloween .btn:hover{filter:brightness(1.12);transform:translateY(-2px)!important}
+.halloween .btn:active{transform:translate(2px,3px)!important;box-shadow:none!important}
+.halloween .btn:disabled{filter:grayscale(.5);opacity:.55;transform:none!important}
+.halloween .btn-gold{background:#ffa84b!important;color:#21182e!important}
+.halloween .btn-blue{background:#b69add!important;color:#21182e!important}
+.halloween .btn-red{background:#af392d!important;color:#fff4db!important}
+.halloween .bet-card{border:2px solid #8e6aaf!important;border-radius:4px!important;background:#f2e6ce!important;color:#21182e!important}
+.halloween .bet-card .balance{color:#493654!important}
+.halloween .bet-card.correct-reveal{background:#d8ebaf!important}
+.halloween .bet-card.incorrect-reveal,.halloween .bet-card.no-bet-reveal{background:#f6c5b6!important}
+.halloween .answer-reveal.show{background:#f7edda!important;max-height:245px}
+.halloween .client-header{background:#2d213f!important;color:#f8e9ce!important;border-color:#a27ac1!important}
+.halloween .client-team-name,.halloween .client-balance{color:#ffbc69!important;text-shadow:none!important}
+.spooky-toolbar{height:46px;display:flex;align-items:center;gap:10px;padding:5px 20px;background:#0c0b12;border-bottom:1px solid #61476d;position:relative;z-index:3;font-size:.68rem;letter-spacing:.12em;color:#b8d786}
+.spooky-toolbar span{margin-right:auto}.spooky-toolbar button{background:#292034;color:#f7e6c9;border:1px solid #86679e;border-radius:3px;padding:7px 10px;cursor:pointer;font-weight:700}
+.spooky-toolbar button:hover{background:#483059}
+.spooky-sky{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0;opacity:.7}
+.spooky-moon{position:absolute;right:6%;top:80px;width:140px;height:140px;border-radius:50%;background:#ffe5ac;box-shadow:0 0 75px #deb67c33}
+.flying-bat{position:absolute;right:5%;top:120px;width:100px;animation:bat-flight 8s ease-in-out infinite}
+.floating-ghost{position:absolute;bottom:3%;left:1%;width:95px;animation:ghost-float 5s ease-in-out infinite;opacity:.5}
+@keyframes bat-flight{50%{transform:translate(-130px,30px) rotate(-12deg)}}
+@keyframes ghost-float{50%{transform:translateY(-20px) rotate(6deg)}}
+.halloween #hostScreen{height:calc(100vh - 46px)!important;position:relative;z-index:1}
+.halloween #clientScreen{position:relative;z-index:1}
+.halloween #clientScreen .client-join{min-height:calc(100vh - 46px)}
+.halloween #clientScreen .gold{color:#e58d2f!important}
+.halloween-art{width:85px;height:85px;margin:0 auto 4px;animation:card-arrive .35s ease-out}
+@keyframes card-arrive{from{transform:translateY(12px) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+#halloweenCards{width:min(1000px,94vw);max-height:88vh;margin:auto;background:#1e172b;color:#f9ebd3;border:2px solid #ffac45;border-radius:5px;padding:24px}
+#halloweenCards::backdrop{background:#080610dc}
+#halloweenCards header{display:flex;justify-content:space-between;align-items:center;gap:16px}
+#halloweenCards header button{font-size:1.4rem;background:#ffac45;color:#21182e;border:0;padding:8px 14px;cursor:pointer}
+#halloweenCardGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:20px}
+.vocab-tile{background:#f7edda;color:#21182e;border:2px solid #a077bc;padding:15px;text-align:center;border-radius:4px}
+.vocab-tile svg{width:85px;height:85px}.vocab-tile h3{font-size:1.1rem}.vocab-tile p{font-size:.9rem;margin-top:6px}
+.halloween .topic-modal-panel{background:#f7edda!important;color:#21182e!important}
+@media(max-width:600px){.spooky-toolbar{padding:5px 10px;gap:6px}.spooky-toolbar span{font-size:0}.spooky-toolbar span::after{content:'🎃';font-size:20px}.halloween-art{width:60px;height:60px}.spooky-moon{width:90px;height:90px}.halloween .client-join h2{font-size:2rem!important}.halloween .host-header h1::after{display:none}}
+@media(prefers-reduced-motion:reduce){.halloween *, .halloween *::before,.halloween *::after{animation:none!important;transition:none!important}}
+.halloween #hostScreen{background:#181221!important}
+.halloween #clientScreen{background:transparent!important}
+.halloween .client-status{color:#eee0f8!important}
+.halloween .game-left{overflow-y:auto;padding-right:5px;gap:10px}
+.halloween .question-display{flex:0 0 auto;min-height:0;padding:12px 18px!important;transform:none}
+.halloween .q-timer{font-size:1.65rem!important;margin-top:5px}
+.halloween .halloween-art{width:60px;height:60px;animation:none}
+.halloween .answer-reveal.show{flex:0 0 auto;max-height:none;overflow:visible;padding:12px 16px}
+.halloween .bets-grid{flex:1 0 130px;min-height:130px}
+.halloween .lb-row{animation:none!important;opacity:1!important}
+.halloween .role-card::before{display:none!important}
+.halloween #roleSelect h1{font-size:clamp(3.4rem,6.5vw,6rem)!important}
+.halloween .role-card{min-height:0!important;padding:20px!important}
+.halloween .role-card .icon{font-size:2.4rem!important}
+.halloween #roleSelect{padding-top:50px!important;padding-bottom:25px!important}
